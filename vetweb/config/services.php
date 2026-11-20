@@ -35,4 +35,9 @@ return [
         ],
     ],
 
+    'cloudinary' => [
+        'cloud_name' => env('CLOUDINARY_CLOUD_NAME', env('VITE_CLOUDINARY_CLOUD_NAME')),
+        'upload_preset' => env('CLOUDINARY_UPLOAD_PRESET', env('VITE_CLOUDINARY_UPLOAD_PRESET', 'vetmob')),
+    ],
+
 ];

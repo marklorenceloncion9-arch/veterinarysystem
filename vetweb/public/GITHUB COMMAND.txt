@@ -1,0 +1,21 @@
+COMMAND FOR GIT HUB FIRST TIME
+git init
+git add .
+git commit -m "Initial commit"
+git branch -M main
+git remote add origin https://github.com/marklorenceloncion9-arch/maiteam-loncion-group.git
+git push -u origin main
+
+Whenever you make changes to your WordPress theme, use these three commands:
+STEP 1 – Add all changes
+git add .
+STEP 2 – Commit changes
+git commit -m "Update MAITEAM theme"
+STEP 3 – Push to GitHub
+git push
+
+If you want to download your GitHub project
+If you are using another computer:
+git clone https://github.com/marklorenceloncion9-arch/maiteam-loncion-group.git
+Enter the project folder:
+cd maiteam-loncion-group

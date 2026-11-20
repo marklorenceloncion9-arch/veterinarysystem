@@ -1,6 +1,7 @@
 import { SymbolView, SymbolViewProps, SymbolWeight } from 'expo-symbols';
 import { StyleProp, ViewStyle } from 'react-native';
 
+// Diri ang icon gamit ang SF Symbols sa iOS.
 export function IconSymbol({
   name,
   size = 24,

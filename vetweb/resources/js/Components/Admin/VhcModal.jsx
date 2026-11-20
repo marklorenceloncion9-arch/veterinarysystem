@@ -1,40 +1,101 @@
 import { router } from '@inertiajs/react';
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
+import {
+    ModalShell,
+    SectionTitle,
+    SpeciesSelector,
+    calculateVhcAmount,
+    DEFAULT_VHC_ISSUED_AT,
+    DEFAULT_VHC_ORIGIN,
+    formatCurrency,
+    formatVhcError,
+    inputClass,
+    normalizeVhcContactNumber,
+    readOnlyClass,
+} from '@/Components/Admin/vhcUi';
+import Tabs from '@/Components/Ui/Tabs';
 
-export default function VhcModal({ isOpen, onClose, species = [] }) {
-    const [formData, setFormData] = useState({
-        name: '',
-        purpose: '',
-        origin: 'Cogon Public Market, El Salvador City',
-        destination: '',
-        livestock: [], // Array of {species_id, male_count, female_count}
-    });
+// Diri himuon ang initial form data sa VHC gikan sa client.
+const buildFormData = (client = null) => ({
+    vhc_client_id: client?.id ?? '',
+    name: client?.name ?? '',
+    age: '',
+    color: '',
+    contact_number: client?.contact_number ?? '',
+    purpose: '',
+    origin: DEFAULT_VHC_ORIGIN,
+    animals_origin: '',
+    destination: '',
+    slh: '',
+    issued_on: '',
+    valid_till: '',
+    or_number: '',
+    amount_paid: '',
+    issued_at: DEFAULT_VHC_ISSUED_AT,
+    inspected_by: '',
+    livestock: [],
+});
+
+// Diri ang form field nga naay label ug error.
+const Field = ({ label, required, error, children }) => (
+    <div className="space-y-1.5">
+        <label className="text-sm font-medium text-slate-700">
+            {label} {required && <span className="text-rose-500">*</span>}
+        </label>
+        {children}
+        {error && <p className="text-xs text-rose-500">{formatVhcError(error)}</p>}
+    </div>
+);
+
+// Diri ang modal sa paghimo ug bag-ong VHC.
+export default function VhcModal({ isOpen, onClose, species = [], vhcFees = {}, client = null }) {
+    const isExistingClient = Boolean(client?.id);
+    const [formData, setFormData] = useState(() => buildFormData(client));
     const [errors, setErrors] = useState({});
+    const [activeTab, setActiveTab] = useState('certificate');
+    const [amountManuallyEdited, setAmountManuallyEdited] = useState(false);
 
-    // Toggle species selection
+    useEffect(() => {
+        if (isOpen) {
+            setFormData(buildFormData(client));
+            setErrors({});
+            setActiveTab('certificate');
+            setAmountManuallyEdited(false);
+        }
+    }, [isOpen, client]);
+
+    const suggestedAmount = useMemo(
+        () => calculateVhcAmount(formData.livestock, species, vhcFees, formData.issued_on),
+        [formData.livestock, formData.issued_on, species, vhcFees]
+    );
+
+    useEffect(() => {
+        if (!amountManuallyEdited) {
+            setFormData((prev) => ({
+                ...prev,
+                amount_paid: suggestedAmount > 0 ? String(suggestedAmount) : '',
+            }));
+        }
+    }, [suggestedAmount, amountManuallyEdited]);
+
+    // Diri i-add o tangtangon ang species sa livestock list.
     const handleSpeciesToggle = (speciesId) => {
         setFormData((prev) => {
             const exists = prev.livestock.find((l) => l.species_id === speciesId);
             if (exists) {
-                // Remove species
                 return {
                     ...prev,
                     livestock: prev.livestock.filter((l) => l.species_id !== speciesId),
                 };
-            } else {
-                // Add species
-                return {
-                    ...prev,
-                    livestock: [
-                        ...prev.livestock,
-                        { species_id: speciesId, male_count: '', female_count: '' },
-                    ],
-                };
             }
+            return {
+                ...prev,
+                livestock: [...prev.livestock, { species_id: speciesId, male_count: '', female_count: '' }],
+            };
         });
     };
 
-    // Update count for a species
+    // Diri usbon ang male o female count sa species.
     const handleLivestockChange = (speciesId, field, value) => {
         setFormData((prev) => ({
             ...prev,
@@ -44,29 +105,35 @@ export default function VhcModal({ isOpen, onClose, species = [] }) {
         }));
     };
 
+    // Diri i-update ang form field nga gi-type.
     const handleChange = (e) => {
         const { name, value } = e.target;
+        if (name === 'amount_paid') {
+            setAmountManuallyEdited(true);
+        }
+        if (name === 'contact_number') {
+            setFormData((prev) => ({ ...prev, contact_number: normalizeVhcContactNumber(value) }));
+            return;
+        }
         setFormData((prev) => ({ ...prev, [name]: value }));
     };
 
+    // Diri i-submit ang VHC form sa server.
     const handleSubmit = (e) => {
         e.preventDefault();
         router.post('/admin/vhc', formData, {
             onError: (err) => setErrors(err),
             onSuccess: () => {
                 onClose();
-                setFormData({
-                    name: '',
-                    purpose: '',
-                    origin: 'Cogon Public Market, El Salvador City',
-                    destination: '',
-                    livestock: [],
-                });
+                setFormData(buildFormData(client));
                 setErrors({});
+                setActiveTab('certificate');
+                setAmountManuallyEdited(false);
             },
         });
     };
 
+    // Diri isira ang modal ug limpyohan ang errors.
     const handleClose = () => {
         onClose();
         setErrors({});
@@ -74,181 +141,166 @@ export default function VhcModal({ isOpen, onClose, species = [] }) {
 
     if (!isOpen) return null;
 
+    const tabs = [
+        { id: 'certificate', label: 'Certificate Info' },
+        { id: 'animals', label: 'Livestock, Poultry & Payment' },
+    ];
+
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            {/* Backdrop */}
-            <div
-                className="absolute inset-0 bg-black/50 backdrop-blur-sm transition-opacity"
-                onClick={handleClose}
-            />
-
-            {/* Modal */}
-            <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden">
-                {/* Header */}
-                <div className="px-6 py-5 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
-                    <div>
-                        <h2 className="text-xl font-bold text-gray-900">Add VHC Record</h2>
-                        <p className="text-sm text-gray-500 mt-0.5">Create a new VHC certificate record</p>
-                    </div>
-                    <button
-                        onClick={handleClose}
-                        className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-all"
-                    >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                    </button>
-                </div>
-
-                {/* Body */}
-                <form onSubmit={handleSubmit} className="p-6 overflow-y-auto max-h-[calc(90vh-140px)]">
-                    <div className="space-y-6">
-                        {/* Certificate Information */}
-                        <section>
-                            <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wide mb-4 flex items-center gap-2">
-                                <span className="w-1 h-4 bg-violet-500 rounded-full"></span>
-                                Certificate Information
-                            </h3>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div className="space-y-1.5">
-                                    <label className="text-sm font-medium text-gray-700">
-                                        Name <span className="text-red-500">*</span>
-                                    </label>
-                                    <input
-                                        type="text"
-                                        name="name"
-                                        value={formData.name}
-                                        onChange={handleChange}
-                                        placeholder="Enter certificate name"
-                                        className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 transition-all outline-none"
-                                    />
-                                    {errors.name && (
-                                        <p className="text-red-500 text-xs">{errors.name}</p>
-                                    )}
-                                </div>
-                                <div className="space-y-1.5">
-                                    <label className="text-sm font-medium text-gray-700">
-                                        Purpose <span className="text-red-500">*</span>
-                                    </label>
-                                    <input
-                                        type="text"
-                                        name="purpose"
-                                        value={formData.purpose}
-                                        onChange={handleChange}
-                                        placeholder="e.g., Slaughter, Breeding, Sale"
-                                        className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 transition-all outline-none"
-                                    />
-                                    {errors.purpose && (
-                                        <p className="text-red-500 text-xs">{errors.purpose}</p>
-                                    )}
-                                </div>
-                                <div className="space-y-1.5">
-                                    <label className="text-sm font-medium text-gray-700">Origin</label>
-                                    <div className="w-full px-3.5 py-2.5 bg-gray-100 border border-gray-200 rounded-xl text-gray-600 text-sm">
-                                        Cogon Public Market, El Salvador City
-                                    </div>
-                                </div>
-                                <div className="space-y-1.5">
-                                    <label className="text-sm font-medium text-gray-700">
-                                        Destination <span className="text-red-500">*</span>
-                                    </label>
-                                    <input
-                                        type="text"
-                                        name="destination"
-                                        value={formData.destination}
-                                        onChange={handleChange}
-                                        placeholder="Enter destination"
-                                        className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 transition-all outline-none"
-                                    />
-                                    {errors.destination && (
-                                        <p className="text-red-500 text-xs">{errors.destination}</p>
-                                    )}
-                                </div>
-                            </div>
-                        </section>
-
-                        {/* Livestock Details */}
-                        <section>
-                            <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wide mb-4 flex items-center gap-2">
-                                <span className="w-1 h-4 bg-green-500 rounded-full"></span>
-                                Livestock Details
-                            </h3>
-                            <p className="text-sm text-gray-500 mb-3">Select one or more species and enter counts:</p>
-                            
-                            {/* Species Checkboxes */}
-                            <div className="space-y-3">
-                                {species.map((s) => {
-                                    const isSelected = formData.livestock.some((l) => l.species_id === s.id);
-                                    const livestockEntry = formData.livestock.find((l) => l.species_id === s.id);
-                                    
-                                    return (
-                                        <div key={s.id} className={`border rounded-xl p-4 transition-all ${isSelected ? 'border-violet-300 bg-violet-50/30' : 'border-gray-200 bg-gray-50'}`}>
-                                            <div className="flex items-center gap-3 mb-2">
-                                                <input
-                                                    type="checkbox"
-                                                    id={`species-${s.id}`}
-                                                    checked={isSelected}
-                                                    onChange={() => handleSpeciesToggle(s.id)}
-                                                    className="w-5 h-5 text-violet-600 border-gray-300 rounded focus:ring-violet-500"
-                                                />
-                                                <label htmlFor={`species-${s.id}`} className="font-medium text-gray-900 cursor-pointer">
-                                                    {s.species_name}
-                                                </label>
-                                            </div>
-                                            {isSelected && (
-                                                <div className="grid grid-cols-2 gap-3 mt-3 pl-8">
-                                                    <div>
-                                                        <label className="text-xs font-medium text-gray-600">Male Count</label>
-                                                        <input
-                                                            type="number"
-                                                            value={livestockEntry?.male_count || ''}
-                                                            onChange={(e) => handleLivestockChange(s.id, 'male_count', e.target.value)}
-                                                            placeholder="0"
-                                                            min="0"
-                                                            className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 outline-none text-sm"
-                                                        />
-                                                    </div>
-                                                    <div>
-                                                        <label className="text-xs font-medium text-gray-600">Female Count</label>
-                                                        <input
-                                                            type="number"
-                                                            value={livestockEntry?.female_count || ''}
-                                                            onChange={(e) => handleLivestockChange(s.id, 'female_count', e.target.value)}
-                                                            placeholder="0"
-                                                            min="0"
-                                                            className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 outline-none text-sm"
-                                                        />
-                                                    </div>
-                                                </div>
-                                            )}
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                            {errors.livestock && (
-                                <p className="text-red-500 text-xs mt-2">{errors.livestock}</p>
-                            )}
-                        </section>
-                    </div>
-                </form>
-
-                {/* Footer */}
-                <div className="px-6 py-4 border-t border-gray-100 bg-gray-50/50 flex items-center justify-end gap-3">
+        <ModalShell
+            title={isExistingClient ? 'Add Certificate' : 'New Client Folder'}
+            subtitle={
+                isExistingClient
+                    ? `Add another veterinary health certificate for ${client.name}`
+                    : 'Create a client folder with their first veterinary health certificate'
+            }
+            onClose={handleClose}
+            footer={
+                <div className="flex items-center justify-end gap-3">
                     <button
                         type="button"
                         onClick={handleClose}
-                        className="px-5 py-2.5 text-gray-700 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 hover:border-gray-300 transition-all font-medium"
+                        className="rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
                     >
                         Cancel
                     </button>
                     <button
+                        type="button"
                         onClick={handleSubmit}
-                        className="px-5 py-2.5 text-white bg-violet-600 rounded-xl hover:bg-violet-700 transition-all font-medium shadow-lg shadow-violet-500/25"
+                        className="rounded-xl bg-violet-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-violet-700"
                     >
-                        Save VHC Record
+                        {isExistingClient ? 'Save Certificate' : 'Create Folder & Certificate'}
                     </button>
                 </div>
+            }
+        >
+            <div className="px-6 pt-2">
+                <Tabs
+                    value={activeTab}
+                    onChange={setActiveTab}
+                    fullWidth
+                    items={tabs}
+                />
             </div>
-        </div>
+
+            <form onSubmit={handleSubmit} className="p-6">
+                {activeTab === 'certificate' && (
+                    <div className="space-y-6">
+                        <section>
+                            <SectionTitle>Owner & Animal Details</SectionTitle>
+                            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                {isExistingClient ? (
+                                    <>
+                                        <Field label="Client Name">
+                                            <div className={readOnlyClass}>{formData.name}</div>
+                                            <input type="hidden" name="vhc_client_id" value={formData.vhc_client_id} />
+                                            <input type="hidden" name="name" value={formData.name} />
+                                        </Field>
+                                        <Field label="Contact Number">
+                                            <div className={readOnlyClass}>{formData.contact_number || '—'}</div>
+                                            <input type="hidden" name="contact_number" value={formData.contact_number} />
+                                        </Field>
+                                    </>
+                                ) : (
+                                    <>
+                                        <Field label="Name" required error={errors.name}>
+                                            <input type="text" name="name" value={formData.name} onChange={handleChange} placeholder="Enter owner / client name" className={inputClass} />
+                                        </Field>
+                                        <Field label="Contact Number" error={errors.contact_number}>
+                                            <input type="tel" name="contact_number" value={formData.contact_number} onChange={handleChange} placeholder="09XXXXXXXXX" maxLength={11} inputMode="numeric" className={inputClass} />
+                                            <p className="text-xs text-slate-500">Must start with 09 and be 11 digits</p>
+                                        </Field>
+                                    </>
+                                )}
+                                <Field label="Age" error={errors.age}>
+                                    <input type="text" name="age" value={formData.age} onChange={handleChange} placeholder="e.g., 2 years" className={inputClass} />
+                                </Field>
+                                <Field label="Color" error={errors.color}>
+                                    <input type="text" name="color" value={formData.color} onChange={handleChange} placeholder="Enter animal color" className={inputClass} />
+                                </Field>
+                            </div>
+                        </section>
+
+                        <section>
+                            <SectionTitle accent="emerald">Movement & Purpose</SectionTitle>
+                            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                <Field label="Purpose" required error={errors.purpose}>
+                                    <input type="text" name="purpose" value={formData.purpose} onChange={handleChange} placeholder="e.g., Slaughter, Breeding, Sale" className={inputClass} />
+                                </Field>
+                                <Field label="Destination" required error={errors.destination}>
+                                    <input type="text" name="destination" value={formData.destination} onChange={handleChange} placeholder="Enter destination" className={inputClass} />
+                                </Field>
+                                <Field label="Origin (Address)" required error={errors.origin}>
+                                    <div className="rounded-xl border border-slate-200 bg-slate-100 px-3.5 py-2.5 text-sm text-slate-600">
+                                        Cogon Public Market, El Salvador City
+                                    </div>
+                                    <input type="hidden" name="origin" value={formData.origin} />
+                                </Field>
+                                <Field label="Animals Origin" error={errors.animals_origin}>
+                                    <input type="text" name="animals_origin" value={formData.animals_origin} onChange={handleChange} placeholder="Enter animals origin" className={inputClass} />
+                                </Field>
+                            </div>
+                        </section>
+
+                        <section>
+                            <SectionTitle accent="blue">Issuance Details</SectionTitle>
+                            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                <Field label="SLH" error={errors.slh}>
+                                    <input type="text" name="slh" value={formData.slh} onChange={handleChange} placeholder="Enter SLH" className={inputClass} />
+                                </Field>
+                                <Field label="Issued At" error={errors.issued_at}>
+                                    <input type="text" name="issued_at" value={formData.issued_at} onChange={handleChange} placeholder="Place of issuance" className={inputClass} />
+                                </Field>
+                                <Field label="Issued On" error={errors.issued_on}>
+                                    <input type="date" name="issued_on" value={formData.issued_on} onChange={handleChange} className={inputClass} />
+                                </Field>
+                                <Field label="Valid Till" error={errors.valid_till}>
+                                    <input type="date" name="valid_till" value={formData.valid_till} onChange={handleChange} className={inputClass} />
+                                </Field>
+                                <Field label="O.R Number" error={errors.or_number}>
+                                    <input type="text" name="or_number" value={formData.or_number} onChange={handleChange} placeholder="Enter O.R number" className={inputClass} />
+                                </Field>
+                                <Field label="Inspected By" error={errors.inspected_by}>
+                                    <input type="text" name="inspected_by" value={formData.inspected_by} onChange={handleChange} placeholder="Inspector name" className={inputClass} />
+                                </Field>
+                            </div>
+                        </section>
+                    </div>
+                )}
+
+                {activeTab === 'animals' && (
+                    <div className="space-y-6">
+                        <section>
+                            <SectionTitle accent="emerald">Livestock & Poultry Details</SectionTitle>
+                            <p className="mb-4 text-sm text-slate-500">
+                                Select one or more species and enter male and female counts for each.
+                            </p>
+                            <SpeciesSelector
+                                species={species}
+                                selected={formData.livestock}
+                                onToggle={handleSpeciesToggle}
+                                onChange={handleLivestockChange}
+                                vhcFees={vhcFees}
+                            />
+                            {errors.livestock && <p className="mt-3 text-xs text-rose-500">{formatVhcError(errors.livestock)}</p>}
+                        </section>
+
+                        <section>
+                            <SectionTitle accent="blue">Payment</SectionTitle>
+                            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                <Field label="Amount Paid" error={errors.amount_paid}>
+                                    <input type="number" name="amount_paid" value={formData.amount_paid} onChange={handleChange} placeholder="0.00" min="0" step="0.01" className={inputClass} />
+                                    {!amountManuallyEdited && suggestedAmount > 0 && (
+                                        <p className="mt-1 text-xs text-emerald-600">
+                                            Auto-calculated: {formatCurrency(suggestedAmount)} (certificate + livestock/poultry heads)
+                                        </p>
+                                    )}
+                                </Field>
+                            </div>
+                        </section>
+                    </div>
+                )}
+            </form>
+        </ModalShell>
     );
 }

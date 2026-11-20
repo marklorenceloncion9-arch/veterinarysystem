@@ -1,38 +1,37 @@
 import { Tabs, useRouter } from 'expo-router';
 import React, { useEffect } from 'react';
 
-import { HapticTab } from '@/components/haptic-tab';
 import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Colors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import { FloatingNavBar } from '@/components/FloatingNavBar';
+import { ScreenFrame } from '@/components/ScreenFrame';
 import { useAuth } from '@/contexts/auth-context';
+import { NotificationProvider } from '@/contexts/notification-context';
+import { isFieldman } from '@/utils/auth-routing';
+import { TAB_SCREEN_OPTIONS } from '@/utils/tabTransition';
 
+// Diri ang tab layout sa pet owner.
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, user } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
-    console.log('TabsLayout effect - isLoading:', isLoading, 'isAuthenticated:', isAuthenticated);
     if (isLoading) return;
-
-    // If user is NOT authenticated, redirect to login
     if (!isAuthenticated) {
-      console.log('TabsLayout: Not authenticated, redirecting to login');
-      // Wait a bit for auth state to settle before redirecting
-      setTimeout(() => {
-        router.replace('/(auth)/login');
-      }, 500);
+      router.replace('/(auth)/login');
+      return;
     }
-  }, [isAuthenticated, isLoading]);
+    if (isFieldman(user)) {
+      router.replace('/(tabs-fm)');
+    }
+  }, [isAuthenticated, isLoading, router, user]);
 
   return (
+    <NotificationProvider>
+    <ScreenFrame>
     <Tabs
-      screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
-        headerShown: false,
-        tabBarButton: HapticTab,
-      }}>
+      tabBar={() => null}
+      detachInactiveScreens={false}
+      screenOptions={TAB_SCREEN_OPTIONS}>
       <Tabs.Screen
         name="index"
         options={{
@@ -55,12 +54,23 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="notifications"
+        options={{
+          title: 'Notifications',
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name="bell.fill" color={color} />,
+        }}
+      />
+      <Tabs.Screen
         name="profile"
         options={{
           title: 'Profile',
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="person.fill" color={color} />,
         }}
       />
+     
     </Tabs>
+    <FloatingNavBar variant="owner" />
+    </ScreenFrame>
+    </NotificationProvider>
   );
 }

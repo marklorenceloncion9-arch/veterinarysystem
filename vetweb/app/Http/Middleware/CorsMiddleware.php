@@ -14,6 +14,7 @@ class CorsMiddleware
      * @param  \Closure  $next
      * @return mixed
      */
+    // Diri ibutang ang CORS headers sa response.
     public function handle(Request $request, Closure $next)
     {
         $origin = $request->headers->get('Origin') ?: '*';
@@ -22,7 +23,7 @@ class CorsMiddleware
         if ($request->isMethod('OPTIONS')) {
             $response = response('', 200);
             $response->headers->set('Access-Control-Allow-Origin', $origin);
-            $response->headers->set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+            $response->headers->set('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
             $response->headers->set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, X-CSRF-TOKEN');
             $response->headers->set('Access-Control-Allow-Credentials', 'true');
             $response->headers->set('Access-Control-Max-Age', '86400');
@@ -33,7 +34,7 @@ class CorsMiddleware
         $response = $next($request);
 
         $response->headers->set('Access-Control-Allow-Origin', $origin);
-        $response->headers->set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+        $response->headers->set('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
         $response->headers->set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, X-CSRF-TOKEN');
         $response->headers->set('Access-Control-Allow-Credentials', 'true');
         $response->headers->set('Vary', 'Origin');

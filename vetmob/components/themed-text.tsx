@@ -8,6 +8,7 @@ export type ThemedTextProps = TextProps & {
   type?: 'default' | 'title' | 'defaultSemiBold' | 'subtitle' | 'link';
 };
 
+// Diri ang text nga mosunod sa theme.
 export function ThemedText({
   style,
   lightColor,

@@ -19,11 +19,13 @@ class VhcLivestock extends Model
         'female_count',
     ];
 
+    // Diri ang VHC record sa livestock.
     public function vhc(): BelongsTo
     {
         return $this->belongsTo(VhcRecord::class, 'vhc_id');
     }
 
+    // Diri ang species sa livestock.
     public function species(): BelongsTo
     {
         return $this->belongsTo(Species::class);

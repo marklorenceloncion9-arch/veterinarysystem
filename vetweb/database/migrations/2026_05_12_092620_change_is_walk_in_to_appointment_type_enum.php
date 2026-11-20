@@ -12,8 +12,12 @@ return new class extends Migration
      */
     public function up(): void
     {
-        // Change boolean to enum
-        DB::statement("ALTER TABLE bookings MODIFY COLUMN is_walk_in ENUM('regular', 'walk_in', 'emergency') DEFAULT 'regular'");
+        // Check if is_walk_in column exists before trying to modify it
+        $columns = DB::select("SHOW COLUMNS FROM bookings LIKE 'is_walk_in'");
+        if (!empty($columns)) {
+            // Change boolean to enum
+            DB::statement("ALTER TABLE bookings MODIFY COLUMN is_walk_in ENUM('regular', 'walk_in', 'emergency') DEFAULT 'regular'");
+        }
     }
 
     /**

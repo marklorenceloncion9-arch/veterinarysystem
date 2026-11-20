@@ -29,6 +29,7 @@ class Treatment extends Model
     /**
      * Get the appointment.
      */
+    // Diri ang appointment sa treatment.
     public function appointment(): BelongsTo
     {
         return $this->belongsTo(Appointment::class, 'booking_id');
@@ -37,6 +38,7 @@ class Treatment extends Model
     /**
      * Get the animal.
      */
+    // Diri ang hayop nga gitambalan.
     public function animal(): BelongsTo
     {
         return $this->belongsTo(Animal::class);
@@ -45,6 +47,7 @@ class Treatment extends Model
     /**
      * Get the pet (backward compatibility).
      */
+    // Diri ang pet nga gitambalan.
     public function pet(): BelongsTo
     {
         return $this->belongsTo(Animal::class);
@@ -53,6 +56,7 @@ class Treatment extends Model
     /**
      * Get the treatment type.
      */
+    // Diri ang type sa treatment.
     public function treatmentType(): BelongsTo
     {
         return $this->belongsTo(TreatmentType::class);
@@ -61,6 +65,7 @@ class Treatment extends Model
     /**
      * Get the complaint (if linked).
      */
+    // Diri ang complaint sa treatment.
     public function complaint(): BelongsTo
     {
         return $this->belongsTo(Complaint::class);

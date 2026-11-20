@@ -1,25 +1,29 @@
-import { View, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, RefreshControl, Modal } from 'react-native';
-import { useState, useEffect } from 'react';
+import { View, ScrollView, TouchableOpacity, RefreshControl, Modal, Image, Text } from 'react-native';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import Animated, { FadeInDown, FadeOut } from 'react-native-reanimated';
+import { LoadingState } from '@/components/LoadingState';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useAuth } from '@/contexts/auth-context';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import axios from 'axios';
 import { API_BASE_URL } from '@/config/api';
-
-const QUICK_ACTIONS = [
-  { icon: 'calendar-today', label: 'Book Visit', color: 'bg-blue-500', route: '/(tabs)/servicesmob' },
-  { icon: 'pets', label: 'My Animals', color: 'bg-amber-500', route: '/(tabs)/animals' },
-  { icon: 'medical-services', label: 'Services', color: 'bg-emerald-500', route: '/(tabs)/servicesmob' },
-  { icon: 'phone', label: 'Contact', color: 'bg-purple-500', route: '' },
-];
+import { getStatusIcon, getStatusStyle } from '@/utils/bookingStatus';
+import { normalizeAppointment, formatAppointmentTimeLabel, type BookedPetDisplay } from '@/utils/appointmentDisplay';
+import { isAccountUnderReview } from '@/utils/ownerStatus';
+import { MeetingPlaceMap } from '@/components/MeetingPlaceMap';
+import { AppScreenHeader } from '@/components/AppScreenHeader';
+import { HeaderIconButton, HeaderSearch, HeaderTitle, SectionHeading } from '@/components/AppHeaderBits';
+import { useResponsiveLayout } from '@/hooks/use-responsive-layout';
 
 const UPCOMING_APPOINTMENTS = [];
 
 interface Appointment {
   id: number;
   petName: string;
+  petNames?: string[];
+  bookedPets?: BookedPetDisplay[];
   service: string;
   services: string[];
   date: string;
@@ -27,6 +31,11 @@ interface Appointment {
   time: string;
   status: string;
   notes?: string;
+  bookingType?: string;
+  isDoorToDoor?: boolean;
+  meetingLatitude?: number | null;
+  meetingLongitude?: number | null;
+  meetingPlaceLabel?: string | null;
 }
 
 interface Service {
@@ -37,9 +46,41 @@ interface Service {
 
 const SERVICES: Service[] = [];
 
+const NO_BOUNCE_SCROLL = {
+  bounces: false,
+  overScrollMode: 'never' as const,
+};
+
+// Diri himuon ang petsa karon nga YYYY-MM-DD.
+function localDateKey(date = new Date()) {
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${date.getFullYear()}-${month}-${day}`;
+}
+
+// Diri susihon kung home service ang appointment.
+function isHomeVisit(appointment: Appointment) {
+  return appointment.bookingType === 'home_service' || appointment.isDoorToDoor === true;
+}
+
+// Diri ang fade-in animation sa matag resulta.
+const getResultEntering = (index: number) => {
+  const delay = Math.min(index * 55, 350);
+  return FadeInDown.delay(delay).duration(250);
+};
+
+// Diri susihon kung mo-match sa search ang mga value.
+const matchesSearch = (query: string, ...values: (string | undefined)[]) => {
+  const normalized = query.trim().toLowerCase();
+  if (!normalized) return true;
+  return values.some((value) => value?.toLowerCase().includes(normalized));
+};
+
+// Diri ang home screen sa pet owner.
 export default function HomeScreen() {
-  const { token, user } = useAuth();
+  const { token, user, refreshUser } = useAuth();
   const router = useRouter();
+  const layout = useResponsiveLayout();
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -48,6 +89,8 @@ export default function HomeScreen() {
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedService, setSelectedService] = useState<Service | null>(null);
   const [currentTipIndex, setCurrentTipIndex] = useState(0);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [profilePhotoUrl, setProfilePhotoUrl] = useState((user as any)?.profile_photo_url || '');
 
   // Animal care tips array
   const animalCareTips = [
@@ -92,6 +135,7 @@ export default function HomeScreen() {
   }, []);
 
   // Get service description
+  // Diri kuhaon ang description sa serbisyo.
   const getServiceDescription = (serviceName: string | undefined) => {
     if (!serviceName) return 'Professional veterinary service provided by our experienced team of veterinarians.';
     
@@ -114,6 +158,7 @@ export default function HomeScreen() {
   };
 
   // Get service icon
+  // Diri pilion ang icon sa serbisyo.
   const getServiceIcon = (serviceName: string | undefined) => {
     if (!serviceName) return 'medical-services';
     
@@ -136,6 +181,7 @@ export default function HomeScreen() {
   };
 
   // Fetch services
+  // Diri kuhaon ang lista sa serbisyo.
   const fetchServices = async () => {
     try {
       const response = await axios.get(`${API_BASE_URL}/api/mobile/services`);
@@ -151,6 +197,7 @@ export default function HomeScreen() {
 
   // Fetch appointments
   useEffect(() => {
+    // Diri kuhaon ang approved nga appointment sa user.
     const fetchAppointments = async () => {
       if (!token) return;
       
@@ -161,9 +208,9 @@ export default function HomeScreen() {
         
         if (response.data.success) {
           // Filter only approved appointments for home display
-          const approvedAppointments = response.data.appointments.filter(
-            (apt: Appointment) => apt.status === 'approved'
-          );
+          const approvedAppointments = response.data.appointments
+            .filter((apt: Appointment) => apt.status === 'approved')
+            .map((apt: Appointment) => normalizeAppointment(apt));
           setAppointments(approvedAppointments);
         }
       } catch (error) {
@@ -176,12 +223,38 @@ export default function HomeScreen() {
     fetchAppointments();
   }, [token]);
 
+  useEffect(() => {
+    // Diri kuhaon ang profile photo sa user.
+    const fetchProfilePhoto = async () => {
+      if (!token) return;
+      try {
+        const response = await axios.get(`${API_BASE_URL}/api/mobile/user`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (response.data.success) {
+          setProfilePhotoUrl(response.data.user?.profile_photo_url || '');
+        }
+      } catch (error) {
+        console.error('Failed to fetch profile photo:', error);
+      }
+    };
+
+    fetchProfilePhoto();
+  }, [token]);
+
   // Fetch services on mount
   useEffect(() => {
     fetchServices();
   }, []);
 
+  useFocusEffect(
+    useCallback(() => {
+      refreshUser();
+    }, [refreshUser])
+  );
+
   // Pull to refresh
+  // Diri i-refresh ang home screen ug ilisan ang tip.
   const onRefresh = async () => {
     setRefreshing(true);
     
@@ -189,6 +262,7 @@ export default function HomeScreen() {
     const newTipIndex = Math.floor(Math.random() * animalCareTips.length);
     setCurrentTipIndex(newTipIndex);
     
+    // Diri kuhaon balik ang approved nga appointment inig refresh.
     const fetchAppointments = async () => {
       if (!token) return;
       
@@ -198,239 +272,463 @@ export default function HomeScreen() {
         });
         
         if (response.data.success) {
-          const approvedAppointments = response.data.appointments.filter(
-            (apt: Appointment) => apt.status === 'approved'
-          );
+          const approvedAppointments = response.data.appointments
+            .filter((apt: Appointment) => apt.status === 'approved')
+            .map((apt: Appointment) => normalizeAppointment(apt));
           setAppointments(approvedAppointments);
         }
       } catch (error) {
         console.error('Failed to refresh appointments:', error);
-      } finally {
-        setRefreshing(false);
       }
     };
     
-    await fetchAppointments();
+    try {
+      await Promise.all([fetchAppointments(), refreshUser()]);
+    } finally {
+      setRefreshing(false);
+    }
   };
 
+  const isSearching = searchQuery.trim().length > 0;
+  const filteredAppointments = appointments.filter((apt) =>
+    matchesSearch(
+      searchQuery,
+      apt.petName,
+      apt.service,
+      apt.date,
+      apt.date_formatted,
+      apt.time,
+      ...(apt.services || [])
+    )
+  );
+  const filteredServices = services.filter((service) =>
+    matchesSearch(
+      searchQuery,
+      service.type_name,
+      service.description,
+      getServiceDescription(service.type_name)
+    )
+  );
+  const todayKey = localDateKey();
+  const homeVisits = useMemo(
+    () => filteredAppointments.filter((appointment) => isHomeVisit(appointment)),
+    [filteredAppointments]
+  );
+  const clinicalVisits = useMemo(
+    () => filteredAppointments.filter((appointment) => !isHomeVisit(appointment)),
+    [filteredAppointments]
+  );
+  const visibleHomeVisits = useMemo(
+    () => homeVisits
+      .filter((appointment) => !appointment.date || appointment.date >= todayKey)
+      .sort((left, right) => String(left.date || '').localeCompare(String(right.date || ''))),
+    [homeVisits, todayKey]
+  );
+  const hasSearchResults =
+    filteredAppointments.length > 0 ||
+    filteredServices.length > 0;
+
   return (
-    <ThemedView className="flex-1 bg-slate-50 dark:bg-slate-900">
+    <ThemedView className="flex-1 bg-canvas dark:bg-navy-dark">
       {/* Header */}
-      <View className="bg-blue-600 pt-12 pb-6 px-6 rounded-b-3xl">
-        <View className="flex-row items-center justify-between">
-          <View>
-            <ThemedText className="text-blue-100 text-sm">Welcome back,</ThemedText>
-            <ThemedText className="text-white text-2xl font-bold">
-              {user?.name?.split(' ')[0] || 'User'}
-            </ThemedText>
+      <AppScreenHeader>
+        <View className="flex-row items-start justify-between">
+          <View className="flex-1 pr-3">
+            <HeaderTitle
+              eyebrow="Welcome back"
+              title={`Hi, ${user?.name?.split(' ')[0] || 'there'}`}
+              subtitle="Book a visit or check how your pets are doing."
+              compact={layout.isCompact}
+            />
           </View>
-          <TouchableOpacity 
+          <HeaderIconButton
             onPress={() => router.push('/(tabs)/profile')}
-            className="w-12 h-12 rounded-full items-center justify-center"
-            style={{ backgroundColor: 'rgba(255, 255, 255, 0.2)' }}
+            accessibilityLabel="Profile"
           >
-            <MaterialIcons name="person" size={24} color="#ffffff" />
-          </TouchableOpacity>
+            {profilePhotoUrl ? (
+              <Image source={{ uri: profilePhotoUrl }} className="w-11 h-11" resizeMode="cover" />
+            ) : (
+              <MaterialIcons name="person" size={21} color="#16324F" />
+            )}
+          </HeaderIconButton>
         </View>
 
-        {/* Search Bar */}
-        <View className="mt-4 flex-row items-center rounded-xl px-4 py-3" style={{ backgroundColor: 'rgba(255, 255, 255, 0.2)' }}>
-          <MaterialIcons name="search" size={20} color="#ffffff" />
-          <TextInput
-            className="flex-1 ml-3 text-base text-white"
-            placeholder="Search services, vets..."
-            placeholderTextColor="rgba(255, 255, 255, 0.5)"
-          />
+        <HeaderSearch
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          placeholder="Search services, visits..."
+          style={{ marginTop: 16 }}
+        />
+      </AppScreenHeader>
+
+      {isAccountUnderReview(user) ? (
+        <View
+          className="mt-4 rounded-3xl border border-amber-200 bg-amber-50 px-4 py-4 dark:border-amber-700 dark:bg-amber-950/60"
+          style={layout.contentStyle}
+        >
+          <View className="flex-row items-start gap-3">
+            <MaterialIcons name="hourglass-top" size={20} color="#d97706" />
+            <View className="flex-1">
+              <Text className="font-semibold text-amber-900 dark:text-amber-200">
+                Account Under Review
+              </Text>
+              <Text className="mt-1 text-sm text-amber-800 dark:text-amber-300">
+                You can still add pets and book visits. Your name stays Under Review until the office approves your account.
+              </Text>
+            </View>
+          </View>
         </View>
-      </View>
+      ) : null}
 
       <ScrollView 
         className="flex-1" 
         showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 24 + layout.tabBarSpace }}
+        {...NO_BOUNCE_SCROLL}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            colors={['#2563eb']}
-            tintColor="#2563eb"
+            colors={['#1F7A8C']}
+            tintColor="#1F7A8C"
           />
         }
       >
-        {/* Quick Actions */}
-        <View className="px-4 pt-4">
-          <View className="flex-row gap-3">
-            {QUICK_ACTIONS.map((action, index) => (
-              <TouchableOpacity
-                key={index}
-                onPress={() => action.route && router.push(action.route as any)}
-                className="flex-1 items-center"
-              >
-                <View className={`w-14 h-14 ${action.color} rounded-2xl items-center justify-center mb-2`} style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 2, elevation: 2 }}>
-                  <MaterialIcons name={action.icon as any} size={24} color="#ffffff" />
-                </View>
-                <ThemedText className="text-xs text-slate-600 dark:text-slate-400 text-center">
-                  {action.label}
-                </ThemedText>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-
-        {/* Upcoming Appointments */}
-        <View className="px-4 mt-6">
-          <View className="flex-row items-center justify-between mb-3">
-            <ThemedText className="text-lg font-bold text-slate-800 dark:text-white">
-              Upcoming Visits
+        {isSearching && !hasSearchResults && !loading && !servicesLoading ? (
+          <Animated.View
+            entering={FadeInDown.duration(250)}
+            className="mt-4 bg-white dark:bg-slate-800 rounded-3xl p-8 items-center border border-slate-100 dark:border-slate-700"
+            style={layout.contentStyle}
+          >
+            <MaterialIcons name="search-off" size={56} color="#cbd5e1" />
+            <ThemedText className="mt-4 text-center font-semibold text-slate-700 dark:text-slate-200">
+              No results found
             </ThemedText>
-            <TouchableOpacity onPress={() => router.push('/(tabs)/servicesmob')}>
-              <ThemedText className="text-blue-600 text-sm">See All</ThemedText>
-            </TouchableOpacity>
-          </View>
+            <ThemedText className="text-slate-400 mt-2 text-center text-sm">
+              Try searching for a service or visit
+            </ThemedText>
+          </Animated.View>
+        ) : null}
+
+        {(!isSearching || homeVisits.length > 0 || loading) && (
+        <View className="pt-4" style={layout.contentStyle}>
+          <ThemedText className="text-[18px] font-extrabold text-navy mb-3">
+            Home Service
+          </ThemedText>
 
           {loading ? (
-            <View className="items-center justify-center py-12">
-              <ActivityIndicator size="large" color="#2563eb" />
-              <ThemedText className="text-slate-400 mt-4">Loading appointments...</ThemedText>
-            </View>
-          ) : appointments.length === 0 ? (
-            <View className="items-center justify-center py-12">
-              <MaterialIcons name="event" size={72} color="#cbd5e1" />
-              <ThemedText className="text-slate-500 mt-4">No upcoming appointments</ThemedText>
-            </View>
+            <LoadingState label="Fetching your visits" icon="home" />
+          ) : visibleHomeVisits.length === 0 ? (
+            <Animated.View
+              entering={FadeInDown.duration(250)}
+              className="bg-white dark:bg-slate-800 rounded-3xl p-6 items-center border border-slate-100 dark:border-slate-700"
+            >
+              <ThemedText className="text-sm font-semibold text-slate-600 dark:text-slate-300 text-center">
+                No home service today or upcoming
+              </ThemedText>
+            </Animated.View>
           ) : (
-            appointments.map((apt) => (
-              <TouchableOpacity
-                key={apt.id}
-                onPress={() => router.push({ pathname: '/(tabs)/servicesmob', params: { appointmentId: apt.id.toString() } })}
-                className="bg-white dark:bg-slate-800 rounded-2xl p-4 mb-3 flex-row items-center" style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2, elevation: 1 }}
+            visibleHomeVisits.map((apt, index) => {
+              const latitude = Number(apt.meetingLatitude);
+              const longitude = Number(apt.meetingLongitude);
+              const hasMap = apt.meetingLatitude != null && apt.meetingLongitude != null && Number.isFinite(latitude) && Number.isFinite(longitude);
+              const whenLabel = apt.date === todayKey ? 'Today' : 'Upcoming';
+              const serviceLabel = (apt.services?.length ? apt.services : [apt.service]).filter(Boolean).join(' · ');
+              return (
+                <Animated.View
+                  key={`home-${apt.id}-${searchQuery.trim().toLowerCase()}`}
+                  entering={getResultEntering(index)}
+                  exiting={FadeOut.duration(120)}
+                  className="mb-3"
+                >
+                  <TouchableOpacity
+                    onPress={() => router.push({ pathname: '/(tabs)/servicesmob', params: { appointmentId: apt.id.toString() } })}
+                    activeOpacity={0.85}
+                    className="bg-white rounded-3xl px-4 py-3.5 border border-slate-100"
+                  >
+                    <View className="flex-row items-center gap-3">
+                      <View className="w-11 h-11 rounded-2xl items-center justify-center" style={{ backgroundColor: '#EEF6F8' }}>
+                        <MaterialIcons name="home" size={20} color="#1F7A8C" />
+                      </View>
+                      <View className="flex-1">
+                        <View className="flex-row items-center gap-2">
+                          <ThemedText className="flex-1 text-[15px] font-bold text-slate-800" numberOfLines={1}>
+                            {apt.petName}
+                          </ThemedText>
+                          <View className={`rounded-full px-2.5 py-1 ${whenLabel === 'Today' ? 'bg-teal' : 'bg-navy'}`}>
+                            <Text className="text-[10px] font-bold text-white">{whenLabel}</Text>
+                          </View>
+                        </View>
+                        {serviceLabel ? (
+                          <ThemedText className="text-xs font-medium text-teal mt-0.5" numberOfLines={2}>
+                            {serviceLabel}
+                          </ThemedText>
+                        ) : null}
+                        <ThemedText className="text-xs text-slate-500 mt-0.5" numberOfLines={1}>
+                          {[apt.date_formatted || apt.date, formatAppointmentTimeLabel(apt.time)].filter(Boolean).join(' · ')}
+                        </ThemedText>
+                      </View>
+                    </View>
+                  </TouchableOpacity>
+                  <View className="mt-2 overflow-hidden rounded-3xl border border-slate-100 bg-white">
+                    {hasMap ? (
+                      <MeetingPlaceMap
+                        coordinate={{ latitude, longitude }}
+                        editable={false}
+                        height={200}
+                        showRouteLine
+                        markerTitle={apt.meetingPlaceLabel || 'Meeting place'}
+                      />
+                    ) : (
+                      <ThemedText className="px-3 py-3 text-sm text-slate-500">
+                        No meeting place pin for this visit yet.
+                      </ThemedText>
+                    )}
+                  </View>
+                </Animated.View>
+              );
+            })
+          )}
+        </View>
+        )}
+
+        {/* Upcoming Clinical Visits */}
+        {(!isSearching || clinicalVisits.length > 0 || loading) && (
+        <View className="pt-4" style={layout.contentStyle}>
+          <SectionHeading
+            title={isSearching ? 'Matching Visits' : 'Upcoming Clinical Visits'}
+            actionLabel={isSearching ? undefined : 'See all'}
+            onAction={isSearching ? undefined : () => router.push('/(tabs)/servicesmob')}
+          />
+
+          {loading ? null : clinicalVisits.length === 0 ? (
+            <Animated.View
+              entering={FadeInDown.duration(250)}
+              className="bg-white dark:bg-slate-800 rounded-3xl p-8 items-center border border-slate-100 dark:border-slate-700"
+            >
+              <MaterialIcons name="event" size={56} color="#cbd5e1" />
+              <ThemedText className="text-base font-semibold text-slate-700 dark:text-slate-200 mt-4 text-center">
+                {isSearching ? 'No matching visits' : 'No upcoming clinical visits'}
+              </ThemedText>
+              <ThemedText className="text-sm text-slate-400 mt-2 text-center">
+                {isSearching ? 'Try a different search term' : 'Book a visit to see it here'}
+              </ThemedText>
+            </Animated.View>
+          ) : (
+            clinicalVisits.map((apt, index) => (
+              <Animated.View
+                key={`${apt.id}-${searchQuery.trim().toLowerCase()}`}
+                entering={getResultEntering(index)}
+                exiting={FadeOut.duration(120)}
               >
-                <View className="w-12 h-12 bg-blue-100 rounded-xl items-center justify-center" style={{ backgroundColor: 'rgba(37, 99, 235, 0.1)' }}>
-                  <MaterialIcons name="event" size={24} color="#2563eb" />
-                </View>
-                <View className="flex-1 ml-3">
-                  <ThemedText className="font-bold text-slate-800 dark:text-white">
-                    {apt.petName}
-                  </ThemedText>
-                  <View className="flex-row items-center mt-1">
-                    <MaterialIcons name="schedule" size={14} color="#64748b" />
-                    <ThemedText className="text-slate-500 text-sm ml-1">
-                      {apt.date}, {apt.time}
+              <TouchableOpacity
+                onPress={() => router.push({ pathname: '/(tabs)/servicesmob', params: { appointmentId: apt.id.toString() } })}
+                activeOpacity={0.85}
+                className="bg-white rounded-3xl px-4 py-3.5 mb-2.5 border border-slate-100"
+              >
+                <View className="flex-row items-center gap-3">
+                  <View
+                    className="w-11 h-11 rounded-2xl items-center justify-center"
+                    style={{ backgroundColor: '#EEF6F8' }}
+                  >
+                    <MaterialIcons name="pets" size={20} color="#1F7A8C" />
+                  </View>
+                  <View className="flex-1">
+                    <ThemedText className="text-[15px] font-bold text-slate-800" numberOfLines={1}>
+                      {apt.petName}
+                    </ThemedText>
+                    <ThemedText className="text-xs text-slate-500 mt-0.5" numberOfLines={1}>
+                      {[apt.date_formatted || apt.date, formatAppointmentTimeLabel(apt.time)].filter(Boolean).join(' · ')}
                     </ThemedText>
                   </View>
-                  {/* Display services if multiple */}
-                  {apt.services && apt.services.length > 0 && (
-                    <View className="flex-row flex-wrap mt-1">
-                      {apt.services.map((service, index) => (
-                        <View key={index} className="bg-blue-50 dark:bg-blue-900/20 px-2 py-1 rounded mr-1 mb-1">
-                          <ThemedText className="text-xs text-blue-600 dark:text-blue-400">
-                            {service}
-                          </ThemedText>
-                        </View>
-                      ))}
-                    </View>
-                  )}
+                  {(() => {
+                    const statusStyle = getStatusStyle(apt.status);
+                    return (
+                      <View className={`rounded-full px-2.5 py-1 flex-row items-center ${statusStyle.badgeBg}`}>
+                        <MaterialIcons name={getStatusIcon(apt.status)} size={12} color={statusStyle.icon} />
+                        <ThemedText className={`text-[11px] font-bold ml-1 ${statusStyle.badgeText}`}>
+                          {statusStyle.label}
+                        </ThemedText>
+                      </View>
+                    );
+                  })()}
                 </View>
+                {apt.service ? (
+                  <View className="flex-row items-center justify-between mt-2 pt-2.5 border-t border-slate-100">
+                    <ThemedText className="flex-1 text-xs font-medium text-slate-500" numberOfLines={1}>
+                      {apt.service}
+                    </ThemedText>
+                    <MaterialIcons name="chevron-right" size={18} color="#94a3b8" />
+                  </View>
+                ) : null}
               </TouchableOpacity>
+              </Animated.View>
             ))
           )}
         </View>
+        )}
 
         {/* Services */}
-        <View className="px-4 mt-6">
-          <ThemedText className="text-lg font-bold text-slate-800 dark:text-white mb-3">
-            Our Services
-          </ThemedText>
+        {(!isSearching || filteredServices.length > 0 || servicesLoading) && (
+        <View className="mt-6" style={layout.contentStyle}>
+          <SectionHeading title={isSearching ? 'Matching Services' : 'Our Services'} />
           {servicesLoading ? (
-            <View className="items-center justify-center py-8">
-              <ActivityIndicator size="large" color="#2563eb" />
-              <ThemedText className="text-slate-400 mt-4">Loading services...</ThemedText>
-            </View>
+            <LoadingState label="Loading services" icon="medical-services" compact />
+          ) : filteredServices.length === 0 ? (
+            <Animated.View
+              entering={FadeInDown.duration(250)}
+              className="bg-white dark:bg-slate-800 rounded-3xl p-8 items-center border border-slate-100 dark:border-slate-700"
+            >
+              <MaterialIcons name="medical-services" size={56} color="#cbd5e1" />
+              <ThemedText className="text-base font-semibold text-slate-700 dark:text-slate-200 mt-4">
+                No matching services
+              </ThemedText>
+            </Animated.View>
           ) : (
-            <View className="flex-row flex-wrap gap-3">
-              {services.map((service, index) => (
+            <View className="flex-row flex-wrap" style={{ gap: layout.gridGap }}>
+              {filteredServices.map((service, index) => (
+                <Animated.View
+                  key={`${service.id}-${searchQuery.trim().toLowerCase()}`}
+                  entering={getResultEntering(index)}
+                  exiting={FadeOut.duration(120)}
+                  style={{ width: layout.gridItemWidth }}
+                >
                 <TouchableOpacity
-                  key={index}
                   onPress={() => {
-                    console.log('Service clicked:', service.type_name, service.description);
                     setSelectedService(service);
                     setModalVisible(true);
                   }}
-                  className="bg-white dark:bg-slate-800 rounded-2xl p-4 flex-1 min-w-[45%]" style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2, elevation: 1 }}
+                  activeOpacity={0.85}
+                  className="bg-white rounded-3xl p-4 w-full border border-slate-100"
                 >
-                  <View className="w-10 h-10 bg-blue-50 rounded-xl items-center justify-center mb-3" style={{ backgroundColor: 'rgba(37, 99, 235, 0.1)' }}>
-                    <MaterialIcons name={getServiceIcon(service.type_name) as any} size={20} color="#2563eb" />
+                  <View
+                    className="w-11 h-11 rounded-2xl items-center justify-center mb-3"
+                    style={{ backgroundColor: '#EEF6F8' }}
+                  >
+                    <MaterialIcons name={getServiceIcon(service.type_name) as any} size={20} color="#1F7A8C" />
                   </View>
-                  <ThemedText className="font-bold text-slate-800 dark:text-white text-center">
+                  <ThemedText className="font-bold text-slate-800 dark:text-white" numberOfLines={2}>
                     {service.type_name}
                   </ThemedText>
+                  <View className="flex-row items-center justify-between mt-2">
+                    <ThemedText className="text-xs font-medium text-slate-400">View details</ThemedText>
+                    <MaterialIcons name="chevron-right" size={16} color="#94a3b8" />
+                  </View>
                 </TouchableOpacity>
+                </Animated.View>
               ))}
             </View>
           )}
         </View>
+        )}
+
 
         {/* Service Details Modal */}
         <Modal
-          animationType="fade"
+          animationType="slide"
           transparent={true}
           visible={modalVisible}
           onRequestClose={() => setModalVisible(false)}
         >
-          <View className="flex-1 items-center justify-center bg-black/50">
-            <View className="bg-white dark:bg-slate-800 rounded-2xl p-6 mx-4 max-w-sm w-full">
-              <View className="flex-row items-center justify-between mb-4">
-                <ThemedText className="text-xl font-bold text-slate-800 dark:text-white">
-                  {selectedService?.type_name}
+          <View className="flex-1 justify-end" style={{ backgroundColor: 'rgba(0, 0, 0, 0.55)' }}>
+            <View
+              className="bg-white dark:bg-slate-800 rounded-t-3xl overflow-hidden"
+              style={{ maxHeight: layout.sheetMaxHeight, width: '100%', maxWidth: layout.contentMaxWidth, alignSelf: 'center', paddingBottom: layout.bottomInset }}
+            >
+              <View className="border-b border-slate-100 bg-white px-6 pb-5 pt-6">
+                <View className="flex-row items-start justify-between">
+                  <View className="flex-1 pr-4">
+                    <Text className="text-xl font-bold text-navy">
+                      {selectedService?.type_name}
+                    </Text>
+                    <Text className="mt-1 text-sm text-muted">
+                      Service details
+                    </Text>
+                  </View>
+                  <TouchableOpacity
+                    onPress={() => setModalVisible(false)}
+                    className="h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white"
+                  >
+                    <MaterialIcons name="close" size={22} color="#16324F" />
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              <View className="px-6 py-5">
+                <View
+                  className="w-14 h-14 rounded-2xl items-center justify-center mb-4"
+                  style={{ backgroundColor: 'rgba(31, 122, 140, 0.1)' }}
+                >
+                  <MaterialIcons name={getServiceIcon(selectedService?.type_name) as any} size={28} color="#1F7A8C" />
+                </View>
+                <ThemedText className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
+                  About
                 </ThemedText>
-                <TouchableOpacity onPress={() => setModalVisible(false)}>
-                  <MaterialIcons name="close" size={24} color="#64748b" />
+                <ThemedText className="text-base text-slate-700 dark:text-slate-300 leading-6 mb-6">
+                  {(() => {
+                    const specificDesc = getServiceDescription(selectedService?.type_name);
+                    if (specificDesc && !specificDesc.includes('Compassionate care')) {
+                      return specificDesc;
+                    }
+                    return selectedService?.description || specificDesc;
+                  })()}
+                </ThemedText>
+                <TouchableOpacity
+                  onPress={() => {
+                    setModalVisible(false);
+                    router.push('/(tabs)/servicesmob');
+                  }}
+                  className="mb-4 rounded-full bg-navy py-3.5"
+                >
+                  <Text className="font-semibold text-center" style={{ color: '#FFFFFF' }}>
+                    Book This Service
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => setModalVisible(false)}
+                  className="bg-slate-100 dark:bg-slate-700 rounded-xl py-3.5 mb-2"
+                >
+                  <ThemedText className="text-slate-700 dark:text-slate-200 font-semibold text-center">
+                    Close
+                  </ThemedText>
                 </TouchableOpacity>
               </View>
-              <View className="w-16 h-16 bg-blue-50 rounded-xl items-center justify-center mb-4 mx-auto" style={{ backgroundColor: 'rgba(37, 99, 235, 0.1)' }}>
-                <MaterialIcons name={getServiceIcon(selectedService?.type_name) as any} size={32} color="#2563eb" />
-              </View>
-              <ThemedText className="text-slate-600 dark:text-slate-300 text-center leading-6">
-                {(() => {
-                  console.log('Modal showing service:', selectedService?.type_name, selectedService?.description);
-                  const specificDesc = getServiceDescription(selectedService?.type_name);
-                  console.log('Specific description:', specificDesc);
-                  // Use specific description if it's not the default, otherwise use API description
-                  if (specificDesc && !specificDesc.includes('Compassionate care')) {
-                    return specificDesc;
-                  }
-                  return selectedService?.description || specificDesc;
-                })()}
-              </ThemedText>
-              <TouchableOpacity 
-                onPress={() => router.push('/(tabs)/servicesmob')}
-                className="bg-blue-600 rounded-xl py-3 mt-6"
-              >
-                <ThemedText className="text-white font-semibold text-center">
-                  Book This Service
-                </ThemedText>
-              </TouchableOpacity>
             </View>
           </View>
         </Modal>
 
         {/* Tips Card */}
-        <View className="px-4 mt-6 mb-8">
-          <View className="bg-gradient-to-r from-amber-500 to-orange-500 rounded-2xl p-5">
+        {!isSearching && (
+        <View className="mt-6 mb-8" style={layout.contentStyle}>
+          <View className="bg-white dark:bg-slate-800 rounded-2xl p-5 border border-slate-100 dark:border-slate-700" style={{
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.05,
+            shadowRadius: 4,
+            elevation: 2,
+          }}>
             <View className="flex-row items-start">
-              <View className="w-10 h-10 rounded-xl items-center justify-center mr-3" style={{ backgroundColor: 'rgba(255, 255, 255, 0.2)' }}>
-                <MaterialIcons name="lightbulb" size={20} color="#ffffff" />
+              <View
+                className="w-10 h-10 rounded-xl items-center justify-center mr-3"
+                style={{ backgroundColor: 'rgba(31, 122, 140, 0.1)' }}
+              >
+                <MaterialIcons name="lightbulb" size={20} color="#1F7A8C" />
               </View>
               <View className="flex-1">
-                <ThemedText className="text-white font-bold text-lg mb-1">
+                <ThemedText className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">
                   Animal Care Tip
                 </ThemedText>
-                <ThemedText className="text-sm leading-5" style={{ color: 'rgba(255, 255, 255, 0.9)' }}>
+                <ThemedText className="text-base font-bold text-slate-800 dark:text-white mb-1">
+                  {animalCareTips[currentTipIndex]?.title || 'Stay prepared'}
+                </ThemedText>
+                <ThemedText className="text-sm leading-5 text-slate-600 dark:text-slate-300">
                   {animalCareTips[currentTipIndex]?.message || 'Regular check-ups help prevent serious health issues. Book your animal\'s next visit today!'}
                 </ThemedText>
               </View>
             </View>
           </View>
         </View>
+        )}
       </ScrollView>
     </ThemedView>
   );

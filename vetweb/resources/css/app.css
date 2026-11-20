@@ -1,16 +1,212 @@
+@import url('https://fonts.googleapis.com/css2?family=Source+Sans+3:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap');
 @import 'tailwindcss';
+@import './vhc-print.css';
 
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 @source '../../storage/framework/views/*.php';
 @source '../**/*.blade.php';
 @source '../**/*.js';
+@source '../**/*.jsx';
 
-/* Hide scrollbar while maintaining scroll functionality */
+@theme {
+    --font-sans: 'Source Sans 3', ui-sans-serif, system-ui, sans-serif;
+
+    --color-navy: #16324f;
+    --color-navy-dark: #10263c;
+    --color-teal: #1f7a8c;
+    --color-teal-dark: #186272;
+    --color-accent: #3c91e6;
+    --color-canvas: #f5f7fa;
+    --color-ink: #1f2937;
+    --color-muted: #6b7280;
+    --color-success: #2e8b57;
+    --color-warning: #d99a00;
+    --color-danger: #d64545;
+    --color-line: #e5e7eb;
+
+    /* Existing violet classes become teal/navy so admin + budget stay consistent. */
+    --color-violet-50: #eef6f8;
+    --color-violet-100: #d6eaef;
+    --color-violet-200: #b4d6df;
+    --color-violet-300: #86bbc8;
+    --color-violet-400: #4d9aab;
+    --color-violet-500: #1f7a8c;
+    --color-violet-600: #1f7a8c;
+    --color-violet-700: #16324f;
+    --color-violet-800: #12283f;
+    --color-violet-900: #0d1c2c;
+    --color-violet-950: #08121c;
+
+    --color-indigo-50: #eef5fb;
+    --color-indigo-100: #d6e8f8;
+    --color-indigo-200: #b3d4f2;
+    --color-indigo-300: #7fb6ea;
+    --color-indigo-400: #3c91e6;
+    --color-indigo-500: #3c91e6;
+    --color-indigo-600: #1f7a8c;
+    --color-indigo-700: #16324f;
+    --color-indigo-800: #12283f;
+    --color-indigo-900: #0d1c2c;
+
+    --color-purple-50: #eef6f8;
+    --color-purple-100: #d6eaef;
+    --color-purple-200: #b4d6df;
+    --color-purple-300: #86bbc8;
+    --color-purple-400: #4d9aab;
+    --color-purple-500: #1f7a8c;
+    --color-purple-600: #1f7a8c;
+    --color-purple-700: #16324f;
+    --color-purple-800: #12283f;
+    --color-purple-900: #0d1c2c;
+
+    --color-fuchsia-50: #eef6f8;
+    --color-fuchsia-100: #d6eaef;
+    --color-fuchsia-500: #1f7a8c;
+    --color-fuchsia-600: #1f7a8c;
+    --color-fuchsia-700: #16324f;
+
+    --color-emerald-500: #2e8b57;
+    --color-emerald-600: #26754a;
+    --color-emerald-700: #1f5e3c;
+    --color-green-500: #2e8b57;
+    --color-green-600: #26754a;
+
+    --color-amber-500: #d99a00;
+    --color-amber-600: #c08a00;
+    --color-amber-700: #a67600;
+
+    --color-red-500: #d64545;
+    --color-red-600: #c13b3b;
+    --color-red-700: #a83232;
+
+    --color-blue-400: #3c91e6;
+    --color-blue-500: #3c91e6;
+    --color-blue-600: #2f7cc7;
+    --color-blue-700: #16324f;
+
+    --shadow-card: 0 1px 2px rgb(22 50 79 / 0.05), 0 1px 3px rgb(22 50 79 / 0.04);
+}
+
+@layer base {
+    html {
+        font-family: var(--font-sans);
+        color: #1f2937;
+        background-color: #f5f7fa;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+    }
+
+    body {
+        margin: 0;
+        min-height: 100vh;
+        background-color: #f5f7fa;
+        color: #1f2937;
+        font-family: var(--font-sans);
+        line-height: 1.55;
+    }
+
+    h1,
+    h2,
+    h3,
+    h4 {
+        color: #16324f;
+        letter-spacing: -0.02em;
+        line-height: 1.25;
+    }
+
+    p {
+        line-height: 1.6;
+    }
+}
+
+@layer components {
+    .app-card {
+        border: 1px solid #e5e7eb;
+        border-radius: 0.75rem;
+        background: #ffffff;
+        box-shadow: 0 1px 2px rgb(22 50 79 / 0.05);
+    }
+
+    .app-kicker {
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: #16324f;
+    }
+}
+
 .scrollbar-hide {
-    -ms-overflow-style: none;  /* Internet Explorer 10+ */
-    scrollbar-width: none;  /* Firefox */
+    -ms-overflow-style: none;
+    scrollbar-width: none;
 }
 
 .scrollbar-hide::-webkit-scrollbar {
-    display: none;  /* Safari and Chrome */
+    display: none;
+}
+
+.staff-main {
+    min-width: 0;
+    flex: 1 1 0%;
+    padding-top: 3.5rem;
+}
+
+@media (min-width: 1024px) {
+    .staff-main {
+        margin-left: 18rem;
+        padding-top: 0;
+    }
+}
+
+@media (max-width: 1023px) {
+    .staff-main .sticky.top-0 {
+        top: 3.5rem !important;
+    }
+
+    .staff-main > header,
+    .staff-main > div > header,
+    .staff-main header.sticky {
+        padding-left: 1rem;
+        padding-right: 1rem;
+    }
+
+    .staff-main > main {
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
+    }
+}
+
+@media print {
+    .staff-mobile-bar,
+    .staff-sidebar,
+    .staff-sidebar-backdrop {
+        display: none !important;
+    }
+
+    .staff-main {
+        margin-left: 0 !important;
+        padding-top: 0 !important;
+    }
+}
+
+@media print {
+    html,
+    body {
+        height: auto;
+        background: #fff !important;
+    }
+
+    .vhc-print-sheet {
+        display: block !important;
+    }
+
+    .vhc-screen-only {
+        display: none !important;
+    }
+}
+
+@media screen {
+    .vhc-print-sheet {
+        display: none !important;
+    }
 }

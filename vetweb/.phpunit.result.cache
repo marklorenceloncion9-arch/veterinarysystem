@@ -1,0 +1,1 @@
+{"version":1,"defects":{"Tests\\Feature\\FieldmanRegistrationTest::test_admin_register_creates_fieldman_user":7},"times":{"Tests\\Feature\\FieldmanRegistrationTest::test_admin_register_creates_fieldman_user":2.757,"Tests\\Feature\\FieldmanRegistrationTest::test_admin_register_creates_fieldman_user_with_empty_optional_fields":0.213}}

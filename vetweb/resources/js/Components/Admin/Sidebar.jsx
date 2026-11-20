@@ -1,224 +1,422 @@
-import { Link, router, usePage } from '@inertiajs/react';
-import { useState, useEffect } from 'react';
+import { Link, usePage } from '@inertiajs/react';
+import { useState } from 'react';
+import ResponsiveSidebarFrame from '@/Components/Ui/ResponsiveSidebarFrame';
+import { postAdminLogout } from '@/utils/adminLogout';
+import { getSidebarMemory, useSidebarNavScroll } from '@/utils/sidebarMemory';
 
-export default function Sidebar() {
+// Diri susihon kung parehas ang path sa URL ug link.
+function samePath(currentUrl, href) {
+    return (currentUrl || '').split('?')[0] === String(href || '').split('?')[0];
+}
+
+// Diri ang gamay nga titulo sa section sa sidebar.
+function SectionLabel({ children }) {
+    return (
+        <p className="px-3 pt-5 pb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-white/40">
+            {children}
+        </p>
+    );
+}
+
+// Diri ang icon box sa nav link.
+function NavIcon({ children, active }) {
+    return (
+        <span
+            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition-colors duration-200 ${
+                active
+                    ? 'bg-white/15 text-white'
+                    : 'bg-white/10 text-white/65 group-hover:bg-white/15 group-hover:text-white'
+            }`}
+        >
+            {children}
+        </span>
+    );
+}
+
+// Diri ang nav link o button sa admin sidebar.
+function NavItem({ href, active, icon, iconNode, children, onClick, onNavigate, as = 'link', badge, showAlert = false }) {
     const { url } = usePage();
-    const [revenueDropdownOpen, setRevenueDropdownOpen] = useState(false);
+    const baseClass = `group relative flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium transition-colors duration-150 ${
+        active
+            ? 'bg-teal text-white'
+            : 'text-white/75 hover:bg-white/10 hover:text-white'
+    }`;
 
-    // Keep dropdown open when on revenue pages
-    useEffect(() => {
-        if (url.startsWith('/admin/revenue')) {
-            setRevenueDropdownOpen(true);
-        }
-    }, [url]);
+    const content = (
+        <>
+            <div className="relative shrink-0">
+                <NavIcon active={active}>
+                    {iconNode ?? (
+                        <svg className="h-[18px] w-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d={icon} />
+                        </svg>
+                    )}
+                </NavIcon>
+                {showAlert && (
+                    <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-danger ring-2 ring-navy" />
+                )}
+            </div>
+            <span className="min-w-0 flex-1 truncate">{children}</span>
+            {badge > 0 && (
+                <span className="shrink-0 rounded-full bg-danger px-2 py-0.5 text-[10px] font-bold tabular-nums text-white">
+                    {badge}
+                </span>
+            )}
+        </>
+    );
 
+    if (as === 'button') {
+        return (
+            <button type="button" onClick={onClick} className={baseClass}>
+                {content}
+            </button>
+        );
+    }
+
+    return (
+        <Link
+            href={href}
+            preserveState
+            preserveScroll={samePath(url, href)}
+            onClick={() => onNavigate?.()}
+            data-nav-active={active ? 'true' : undefined}
+            className={baseClass}
+        >
+            {content}
+        </Link>
+    );
+}
+
+// Diri ang sub-link sulod sa dropdown menu.
+function SubNavItem({ href, active, children, onNavigate }) {
+    return (
+        <Link
+            href={href}
+            preserveScroll
+            onClick={() => onNavigate?.()}
+            className={`flex items-center rounded-lg py-2 pl-3 pr-3 text-sm font-medium transition-colors duration-150 ${
+                active
+                    ? 'bg-white/10 text-white'
+                    : 'text-white/65 hover:bg-white/10 hover:text-white'
+            }`}
+        >
+            <span className="min-w-0 flex-1">{children}</span>
+        </Link>
+    );
+}
+
+// Diri ang dropdown menu sa sidebar.
+function DropdownNav({ active, icon, label, open, onToggle, children, showAlert = false }) {
+    return (
+        <div>
+            <button
+                type="button"
+                onClick={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    onToggle();
+                }}
+                data-nav-active={active ? 'true' : undefined}
+                aria-expanded={open}
+                className={`group relative flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium transition-colors duration-150 ${
+                    active
+                        ? 'bg-teal text-white'
+                        : 'text-white/75 hover:bg-white/10 hover:text-white'
+                }`}
+            >
+                <div className="flex min-w-0 flex-1 items-center gap-3">
+                    <div className="relative shrink-0">
+                        <NavIcon active={active}>
+                            <svg className="h-[18px] w-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d={icon} />
+                            </svg>
+                        </NavIcon>
+                        {showAlert && (
+                            <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-danger ring-2 ring-navy" />
+                        )}
+                    </div>
+                    <span className="whitespace-nowrap">{label}</span>
+                </div>
+                <svg
+                    className={`h-4 w-4 shrink-0 text-white/50 transition-transform duration-200 ${open ? 'rotate-180 text-white' : ''}`}
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                </svg>
+            </button>
+
+            {open ? (
+                <div className="ml-7 mt-1 space-y-0.5 border-l border-white/15 pl-3">
+                    {children}
+                </div>
+            ) : null}
+        </div>
+    );
+}
+
+// Diri ang main sidebar sa admin panel.
+export default function Sidebar() {
+    const page = usePage();
+    const url = page.url ?? '';
+    const { clientRegistrationCounts, adminNavCounts } = page.props;
+    const pendingClientCount = clientRegistrationCounts?.pending ?? 0;
+    const pendingPetCount = clientRegistrationCounts?.pending_pets ?? 0;
+    const clientAlertCount = pendingClientCount + pendingPetCount;
+    const pendingAppointmentCount = adminNavCounts?.pending_appointments ?? 0;
+    const pendingHomeServiceCount = adminNavCounts?.pending_home_services ?? 0;
+    const revenueActive = url.startsWith('/admin/revenue');
+    const inventoryReportsActive = url.startsWith('/admin/inventory-reports');
+    const reportsActive = url.startsWith('/admin/reports') || inventoryReportsActive;
+    const reportsAnimalsTab = url.includes('tab=total-animals');
+    const servicesReportsActive = url.startsWith('/admin/reports') && !reportsAnimalsTab;
+
+    const adminMemory = getSidebarMemory('admin');
+    const navRef = useSidebarNavScroll('admin', url);
+    const [revenueDropdownOpen, setRevenueDropdownOpen] = useState(
+        () => (adminMemory.seen ? adminMemory.revenueOpen : revenueActive),
+    );
+    const [reportsDropdownOpen, setReportsDropdownOpen] = useState(
+        () => (adminMemory.seen ? adminMemory.reportsOpen : reportsActive),
+    );
+    const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+    const [loggingOut, setLoggingOut] = useState(false);
+
+    // Diri hinumdoman kung abli o sirado ang dropdown menus.
+    const rememberMenus = (next) => {
+        adminMemory.seen = true;
+        if (next.revenueOpen !== undefined) adminMemory.revenueOpen = next.revenueOpen;
+        if (next.reportsOpen !== undefined) adminMemory.reportsOpen = next.reportsOpen;
+    };
+
+    // Diri isira ang Revenue ug Reports menus.
+    const closeBothMenus = () => {
+        setRevenueDropdownOpen(false);
+        setReportsDropdownOpen(false);
+        rememberMenus({ revenueOpen: false, reportsOpen: false });
+    };
+
+    // Diri ablihan ang Revenue menu ug isira ang Reports.
+    const openRevenueMenu = () => {
+        setRevenueDropdownOpen(true);
+        setReportsDropdownOpen(false);
+        rememberMenus({ revenueOpen: true, reportsOpen: false });
+    };
+
+    // Diri ablihan ang Reports menu ug isira ang Revenue.
+    const openReportsMenu = () => {
+        setReportsDropdownOpen(true);
+        setRevenueDropdownOpen(false);
+        rememberMenus({ reportsOpen: true, revenueOpen: false });
+    };
+
+    // Diri susihon kung active ang nav path.
     const isActive = (path) => url.startsWith(path);
 
-    const goToAppointments = () => {
-        router.get('/admin/appointments');
+    // Diri i-logout ang admin.
+    const handleLogout = () => {
+        if (loggingOut) return;
+        setLoggingOut(true);
+        postAdminLogout();
     };
 
     return (
-        <aside className="w-72 bg-white fixed left-0 top-0 h-screen z-40 flex flex-col border-r border-gray-200 shadow-xl">
-            {/* Logo */}
-            <div className="p-8">
-                <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-violet-600 rounded-xl flex items-center justify-center">
-                        <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
-                        </svg>
-                    </div>
-                    <h1 className="text-xl font-bold text-gray-900">VetCare</h1>
-                </div>
-            </div>
+        <>
+        <ResponsiveSidebarFrame brandTitle="ES CityVet" brandSubtitle="Admin Panel">
+            <nav
+                ref={navRef}
+                className="flex-1 space-y-0.5 overflow-y-auto px-3 py-2 [&::-webkit-scrollbar]:hidden"
+                style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+            >
+                <SectionLabel>Overview</SectionLabel>
 
-            {/* Navigation */}
-            <nav className="flex-1 px-4 space-y-1">
-                <Link
+                <NavItem
                     href="/admin/dashboard"
-                    className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${
-                        isActive('/admin/dashboard')
-                            ? 'text-violet-700 bg-violet-50'
-                            : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
-                    }`}
+                    onNavigate={closeBothMenus}
+                    active={isActive('/admin/dashboard')}
+                    icon="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"
                 >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/>
-                    </svg>
                     Dashboard
-                </Link>
+                </NavItem>
 
-                <Link
-                    href="/admin/clients"
-                    className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${
-                        isActive('/admin/clients')
-                            ? 'text-violet-700 bg-violet-50'
-                            : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
-                    }`}
-                >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
-                    </svg>
-                    Clients
-                </Link>
+                <SectionLabel>Operations</SectionLabel>
 
-                <button
-                    onClick={goToAppointments}
-                    className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors w-full ${
-                        isActive('/admin/appointments')
-                            ? 'text-violet-700 bg-violet-50'
-                            : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
-                    }`}
-                >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-                    </svg>
-                    Appointments
-                </button>
-
-                <Link
-                    href="/admin/services"
-                    className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${
-                        isActive('/admin/services')
-                            ? 'text-violet-700 bg-violet-50'
-                            : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
-                    }`}
-                >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/>
-                    </svg>
-                    Services
-                </Link>
-
-                <Link
-                    href="/admin/vhc"
-                    className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${
-                        isActive('/admin/vhc')
-                            ? 'text-violet-700 bg-violet-50'
-                            : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
-                    }`}
-                >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-                    </svg>
-                    VHC Records
-                </Link>
-
-                {/* Revenue Dropdown */}
-                <div className="relative">
-                    <button
-                        onClick={() => setRevenueDropdownOpen(!revenueDropdownOpen)}
-                        className={`flex items-center justify-between w-full gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${
-                            isActive('/admin/revenue')
-                                ? 'text-violet-700 bg-violet-50'
-                                : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
-                        }`}
-                    >
-                        <div className="flex items-center gap-3">
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                            </svg>
-                            Total Revenue
-                        </div>
-                        <svg 
-                            className={`w-4 h-4 transition-transform ${revenueDropdownOpen ? 'rotate-180' : ''}`} 
-                            fill="none" 
-                            stroke="currentColor" 
-                            viewBox="0 0 24 24"
-                        >
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                <NavItem
+                    href="/admin/barangay-animals"
+                    onNavigate={closeBothMenus}
+                    active={isActive('/admin/barangay-animals') || isActive('/admin/clients/')}
+                    iconNode={(
+                        <svg className="h-[18px] w-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                            <circle cx="11" cy="4" r="2" />
+                            <circle cx="18" cy="8" r="2" />
+                            <circle cx="20" cy="16" r="2" />
+                            <path d="M9 10a5 5 0 0 1 5 5v3.5a3.5 3.5 0 0 1-6.84 1.045Q6.52 17.48 4.46 16.84A3.5 3.5 0 0 1 5.5 10Z" />
                         </svg>
-                    </button>
-                    
-                    {revenueDropdownOpen && (
-                        <div className="ml-4 mt-1 space-y-1">
-                            <Link
-                                href="/admin/revenue/pet-registration"
-                                className={`flex items-center gap-3 px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
-                                    isActive('/admin/revenue/pet-registration')
-                                        ? 'text-violet-700 bg-violet-50'
-                                        : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
-                                }`}
-                            >
-                                <span className="w-1.5 h-1.5 rounded-full bg-current"></span>
-                                Pet Registration
-                            </Link>
-                            <Link
-                                href="/admin/revenue/vhc"
-                                className={`flex items-center gap-3 px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
-                                    isActive('/admin/revenue/vhc')
-                                        ? 'text-violet-700 bg-violet-50'
-                                        : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
-                                }`}
-                            >
-                                <span className="w-1.5 h-1.5 rounded-full bg-current"></span>
-                                VHC
-                            </Link>
-                        </div>
                     )}
-                </div>
-
-                <a
-                    href="#"
-                    className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-gray-500 hover:text-gray-900 hover:bg-gray-50 transition-colors"
+                    showAlert={clientAlertCount > 0}
+                    badge={clientAlertCount}
                 >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
-                    </svg>
-                    Reports
-                </a>
+                    Animals
+                </NavItem>
 
-                <Link
-                    href="/admin/settings"
-                    className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${
-                        isActive('/admin/settings')
-                            ? 'text-violet-700 bg-violet-50'
-                            : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
-                    }`}
+                <NavItem
+                    href="/admin/appointments"
+                    onNavigate={closeBothMenus}
+                    active={isActive('/admin/appointments')}
+                    icon="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                    showAlert={pendingAppointmentCount > 0}
+                    badge={pendingAppointmentCount}
                 >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-                    </svg>
-                    Settings
-                </Link>
+                    Clinical Appointments
+                </NavItem>
 
-                <div className="pt-4 mt-4 border-t border-gray-100">
-                    <button
-                        onClick={() => router.post('/admin/logout')}
-                        className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-red-500 hover:text-red-600 hover:bg-red-50 transition-colors w-full"
+                <NavItem
+                    href="/admin/services"
+                    onNavigate={closeBothMenus}
+                    active={isActive('/admin/services')}
+                    icon="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"
+                >
+                    Services
+                </NavItem>
+
+                <NavItem
+                    href="/admin/vhc"
+                    onNavigate={closeBothMenus}
+                    active={isActive('/admin/vhc')}
+                    icon="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                >
+                    VHC Records
+                </NavItem>
+
+                <NavItem
+                    href="/admin/elsalvador-city-map"
+                    onNavigate={closeBothMenus}
+                    active={isActive('/admin/elsalvador-city-map')}
+                    icon="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.553-.832L9 7m0 13l6-3m-6 3V7m6 10l5.447 2.724A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m-6 3l6-3"
+                    showAlert={pendingHomeServiceCount > 0}
+                    badge={pendingHomeServiceCount}
+                >
+                    Elsalvador City Map
+                </NavItem>
+
+                <SectionLabel>Finance & Reports</SectionLabel>
+
+                <DropdownNav
+                    active={revenueActive}
+                    icon="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                    label="Total Revenue"
+                    open={revenueDropdownOpen}
+                    onToggle={() =>
+                        setRevenueDropdownOpen((open) => {
+                            const next = !open;
+                            rememberMenus({ revenueOpen: next });
+                            return next;
+                        })
+                    }
+                >
+                    <SubNavItem
+                        href="/admin/revenue/pet-registration"
+                        active={isActive('/admin/revenue/pet-registration')}
+                        onNavigate={openRevenueMenu}
                     >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
-                        </svg>
-                        Logout
-                    </button>
-                </div>
+                        Pet Registration
+                    </SubNavItem>
+                    <SubNavItem href="/admin/revenue/vhc" active={isActive('/admin/revenue/vhc')} onNavigate={openRevenueMenu}>
+                        VHC
+                    </SubNavItem>
+                </DropdownNav>
+
+                <DropdownNav
+                    active={reportsActive}
+                    icon="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+                    label="Reports"
+                    open={reportsDropdownOpen}
+                    onToggle={() =>
+                        setReportsDropdownOpen((open) => {
+                            const next = !open;
+                            rememberMenus({ reportsOpen: next });
+                            return next;
+                        })
+                    }
+                >
+                    <SubNavItem href="/admin/reports" active={servicesReportsActive} onNavigate={openReportsMenu}>
+                        Services Reports
+                    </SubNavItem>
+                    <SubNavItem href="/admin/reports?tab=total-animals" active={reportsActive && reportsAnimalsTab} onNavigate={openReportsMenu}>
+                        Total Animals
+                    </SubNavItem>
+                    <SubNavItem href="/admin/inventory-reports" active={inventoryReportsActive} onNavigate={openReportsMenu}>
+                        Inventory Reports
+                    </SubNavItem>
+                </DropdownNav>
+
+                <SectionLabel>System</SectionLabel>
+
+                <NavItem
+                    href="/admin/settings"
+                    onNavigate={closeBothMenus}
+                    active={isActive('/admin/settings')}
+                    icon="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                >
+                    Profile
+                </NavItem>
             </nav>
 
-            {/* Bottom mobile app promo */}
-            <div className="p-4 m-4 bg-violet-50 rounded-2xl">
-                <div className="flex items-center gap-2 mb-3">
-                    <div className="w-8 h-8 bg-violet-600 rounded-lg flex items-center justify-center">
-                        <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+            <div className="shrink-0 border-t border-white/10 p-4">
+                <button
+                    type="button"
+                    onClick={() => setShowLogoutConfirm(true)}
+                    className="group flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-white/70 transition-colors duration-150 hover:bg-danger/15 hover:text-white"
+                >
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/10 text-white/70 transition-colors group-hover:bg-danger/20 group-hover:text-white">
+                        <svg className="h-[18px] w-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
                         </svg>
+                    </span>
+                    Logout
+                </button>
+            </div>
+        </ResponsiveSidebarFrame>
+
+        {showLogoutConfirm && (
+            <div className="fixed inset-0 z-[100] flex items-center justify-center bg-navy/50 p-4">
+                <div className="w-full max-w-sm overflow-hidden rounded-xl border border-line bg-white shadow-lg">
+                    <div className="px-6 pt-6 pb-4 text-center">
+                        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-50 text-danger">
+                            <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth="2"
+                                    d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+                                />
+                            </svg>
+                        </div>
+                        <h2 className="text-lg font-bold text-navy">Logout</h2>
+                        <p className="mt-2 text-sm text-muted">Are you sure you want to logout?</p>
                     </div>
-                    <span className="text-sm font-semibold text-violet-900">Get mobile app</span>
-                </div>
-                <div className="flex gap-2">
-                    <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center shadow-sm">
-                        <svg className="w-5 h-5 text-gray-600" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M3,20.5V3.5C3,2.91 3.34,2.39 3.84,2.15L13.69,12L3.84,21.85C3.34,21.6 3,21.09 3,20.5M16.81,15.12L6.05,21.34L14.54,12.85L16.81,15.12M20.16,10.81C20.5,11.08 20.75,11.5 20.75,12C20.75,12.5 20.53,12.9 20.18,13.18L17.89,14.5L15.39,12L17.89,9.5L20.16,10.81M6.05,2.66L16.81,8.88L14.54,11.15L6.05,2.66Z"/>
-                        </svg>
-                    </div>
-                    <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center shadow-sm">
-                        <svg className="w-5 h-5 text-gray-600" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M18.71,19.5C17.88,20.74 17,21.95 15.66,21.97C14.32,22 13.89,21.18 12.37,21.18C10.84,21.18 10.37,21.95 9.1,22C7.79,22.05 6.8,20.68 5.96,19.47C4.25,17 2.94,12.45 4.7,9.39C5.57,7.87 7.13,6.91 8.82,6.88C10.1,6.86 11.32,7.75 12.11,7.75C12.89,7.75 14.37,6.68 15.92,6.84C16.57,6.87 18.39,7.1 19.56,8.82C19.47,8.88 17.39,10.1 17.41,12.63C17.44,15.65 20.06,16.66 20.09,16.67C20.06,16.74 19.67,18.11 18.71,19.5M13,3.5C13.73,2.67 14.94,2.04 15.94,2C16.07,3.17 15.6,4.35 14.9,5.19C14.21,6.04 13.07,6.7 11.95,6.61C11.8,5.46 12.36,4.26 13,3.5Z"/>
-                        </svg>
+                    <div className="flex gap-3 border-t border-line bg-canvas px-6 py-4">
+                        <button
+                            type="button"
+                            onClick={() => setShowLogoutConfirm(false)}
+                            disabled={loggingOut}
+                            className="flex-1 rounded-lg border border-line bg-white px-4 py-2.5 text-sm font-semibold text-ink transition-colors hover:bg-canvas disabled:opacity-50"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            type="button"
+                            onClick={handleLogout}
+                            disabled={loggingOut}
+                            className="flex-1 rounded-lg bg-danger px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-70"
+                        >
+                            {loggingOut ? 'Logging out…' : 'Logout'}
+                        </button>
                     </div>
                 </div>
             </div>
-        </aside>
+        )}
+        </>
     );
 }

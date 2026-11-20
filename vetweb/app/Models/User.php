@@ -29,9 +29,16 @@ class User extends Authenticatable
         'age',
         'barangay_id',
         'zone',
+        'street',
+        'street_latitude',
+        'street_longitude',
         'facebook',
         'phone_number',
+        'profile_photo_url',
+        'id_document_url',
+        'approval_status',
         'role',
+        'email_verified_at',
     ];
 
     /**
@@ -53,6 +60,7 @@ class User extends Authenticatable
     /**
      * Get the barangay associated with the user.
      */
+    // Diri ang barangay sa user.
     public function barangay()
     {
         return $this->belongsTo(Barangay::class);
@@ -61,24 +69,43 @@ class User extends Authenticatable
     /**
      * Get the animals owned by the user.
      */
+    // Diri ang mga hayop sa user.
     public function animals()
     {
-        return $this->hasMany(Animal::class);
+        return $this->hasMany(Animal::class)->orderByDesc('created_at');
+    }
+
+    /**
+     * Get the in-app notifications for this user.
+     */
+    // Diri ang mga notification sa user.
+    public function notifications()
+    {
+        return $this->hasMany(Notification::class);
     }
 
     /**
      * Get the pets owned by the user (backward compatibility).
      */
+    // Diri ang mga pet sa user.
     public function pets()
     {
         return $this->hasMany(Animal::class);
     }
 
-    /**
-     * Get the attributes that should be cast.
-     *
-     * @return array<string, string>
-     */
+    // Diri susihon kung approved na ang client.
+    public function isClientApproved(): bool
+    {
+        return $this->approval_status === 'approved';
+    }
+
+    // Diri susihon kung naghulat pa og approval ang client.
+    public function isClientPendingApproval(): bool
+    {
+        return $this->role === 'client' && $this->approval_status === 'pending';
+    }
+
+    // Diri ang casts sa mga field sa user.
     protected function casts(): array
     {
         return [

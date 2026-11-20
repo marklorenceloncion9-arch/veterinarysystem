@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { View, Text, Animated, StyleSheet, TouchableOpacity } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import { useResponsiveLayout } from '@/hooks/use-responsive-layout';
 
 interface ToastOptions {
   type: 'success' | 'error' | 'info';
@@ -13,21 +14,26 @@ let toastInstance: {
   hide: () => void;
 } | null = null;
 
+// Diri ipakita ang toast message.
 export const showToast = (options: ToastOptions) => {
   toastInstance?.show(options);
 };
 
+// Diri tagoon ang toast message.
 export const hideToast = () => {
   toastInstance?.hide();
 };
 
+// Diri ang provider sa toast sa tibuok app.
 export function ToastProvider({ children }: { children: React.ReactNode }) {
+  const { topInset } = useResponsiveLayout();
   const [visible, setVisible] = useState(false);
   const [message, setMessage] = useState('');
   const [type, setType] = useState<'success' | 'error' | 'info'>('info');
   const translateY = new Animated.Value(-100);
   const opacity = new Animated.Value(0);
 
+  // Diri ipakita ang toast uban ang animation.
   const show = useCallback((options: ToastOptions) => {
     setMessage(options.message);
     setType(options.type);
@@ -53,6 +59,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     }, options.duration || 3000);
   }, []);
 
+  // Diri tagoon ang toast uban ang animation.
   const hide = useCallback(() => {
     Animated.parallel([
       Animated.timing(translateY, {
@@ -77,6 +84,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     };
   }, [show, hide]);
 
+  // Diri pilion ang icon base sa klase sa toast.
   const getIconName = () => {
     switch (type) {
       case 'success': return 'check-circle';
@@ -85,27 +93,30 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  // Diri pilion ang kolor sa icon sa toast.
   const getIconColor = () => {
     switch (type) {
       case 'success': return '#16a34a';
       case 'error': return '#dc2626';
-      case 'info': return '#2563eb';
+      case 'info': return '#1F7A8C';
     }
   };
 
+  // Diri pilion ang background sa toast.
   const getBackgroundColor = () => {
     switch (type) {
       case 'success': return '#dcfce7';
       case 'error': return '#fee2e2';
-      case 'info': return '#dbeafe';
+      case 'info': return '#D6EAEF';
     }
   };
 
+  // Diri pilion ang kolor sa text sa toast.
   const getTextColor = () => {
     switch (type) {
       case 'success': return '#166534';
       case 'error': return '#991b1b';
-      case 'info': return '#1e40af';
+      case 'info': return '#16324F';
     }
   };
 
@@ -118,6 +129,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
         style={[
           styles.container,
           {
+            top: topInset + 8,
             transform: [{ translateY }],
             opacity,
             backgroundColor: getBackgroundColor(),
@@ -139,11 +151,9 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    top: 0,
     left: 0,
     right: 0,
     zIndex: 9999,
-    marginTop: 50,
     marginHorizontal: 16,
     borderRadius: 12,
     shadowColor: '#000',

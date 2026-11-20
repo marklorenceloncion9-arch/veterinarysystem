@@ -19,6 +19,7 @@ class OtpMail extends Mailable
     /**
      * Create a new message instance.
      */
+    // Diri tipigan ang OTP ug ang katuyoan niini.
     public function __construct(string $otp, string $purpose = 'password_reset')
     {
         $this->otp = $otp;
@@ -28,6 +29,7 @@ class OtpMail extends Mailable
     /**
      * Get the message envelope.
      */
+    // Diri ang subject sa OTP nga email.
     public function envelope(): Envelope
     {
         $subject = match($this->purpose) {
@@ -45,6 +47,7 @@ class OtpMail extends Mailable
     /**
      * Get the message content definition.
      */
+    // Diri ang sulod sa OTP nga email.
     public function content(): Content
     {
         $purposeText = match($this->purpose) {
@@ -61,6 +64,7 @@ class OtpMail extends Mailable
     /**
      * Build email HTML content
      */
+    // Diri himuon ang HTML sa OTP nga email.
     private function getHtmlContent(string $purposeText): string
     {
         return <<<HTML

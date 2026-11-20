@@ -1,5 +1,6 @@
 import Animated from 'react-native-reanimated';
 
+// Diri ang animated nga kamot nga naga-wave.
 export function HelloWave() {
   return (
     <Animated.Text

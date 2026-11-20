@@ -27,6 +27,7 @@ class OtpCode extends Model
     /**
      * Check if OTP is valid
      */
+    // Diri susihon kung valid pa ang OTP.
     public function isValid(): bool
     {
         return !$this->is_used && $this->expires_at->isFuture();
@@ -35,6 +36,7 @@ class OtpCode extends Model
     /**
      * Mark OTP as used
      */
+    // Diri markahan nga nagamit na ang OTP.
     public function markAsUsed(): void
     {
         $this->update(['is_used' => true]);
@@ -43,6 +45,7 @@ class OtpCode extends Model
     /**
      * Generate a new 6-digit OTP
      */
+    // Diri himuon ang random nga OTP code.
     public static function generateCode(): string
     {
         return str_pad((string)random_int(0, 999999), 6, '0', STR_PAD_LEFT);
@@ -51,6 +54,7 @@ class OtpCode extends Model
     /**
      * Create OTP for email
      */
+    // Diri himuon ang bag-ong OTP para sa email.
     public static function createForEmail(string $email, string $purpose = 'password_reset', int $expiresInMinutes = 10): self
     {
         // Invalidate old unused OTPs
@@ -71,6 +75,7 @@ class OtpCode extends Model
     /**
      * Verify OTP for email
      */
+    // Diri susihon ang OTP sa email ug katuyoan.
     public static function verify(string $email, string $code, string $purpose = 'password_reset'): ?self
     {
         $otp = self::where('email', $email)

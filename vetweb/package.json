@@ -22,9 +22,16 @@
         "@inertiajs/progress": "^0.2.7",
         "@inertiajs/react": "^2.0.14",
         "@vitejs/plugin-react": "^4.6.0",
+        "date-holidays": "^3.38.0",
+        "laravel-echo": "^2.3.7",
+        "mapbox-gl": "^3.25.0",
         "nativewind": "^4.2.3",
+        "pusher-js": "^8.5.0",
+        "qrcode.react": "^4.2.0",
         "react": "^19.2.5",
         "react-dom": "^19.2.5",
+        "react-easy-crop": "^6.2.3",
+        "recharts": "^3.9.2",
         "tailwind": "^4.0.0"
     }
 }

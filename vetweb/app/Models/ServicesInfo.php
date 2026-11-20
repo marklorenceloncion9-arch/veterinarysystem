@@ -31,6 +31,7 @@ class ServicesInfo extends Model
     /**
      * Get the appointment.
      */
+    // Diri ang appointment sa service info.
     public function appointment(): BelongsTo
     {
         return $this->belongsTo(Appointment::class, 'booking_id');
@@ -39,6 +40,7 @@ class ServicesInfo extends Model
     /**
      * Get the animal.
      */
+    // Diri ang hayop sa service info.
     public function animal(): BelongsTo
     {
         return $this->belongsTo(Animal::class, 'animal_id');
@@ -47,6 +49,7 @@ class ServicesInfo extends Model
     /**
      * Get the pet (backward compatibility).
      */
+    // Diri ang pet sa service info.
     public function pet(): BelongsTo
     {
         return $this->belongsTo(Animal::class, 'animal_id');
@@ -55,6 +58,7 @@ class ServicesInfo extends Model
     /**
      * Get the service (formerly treatment type).
      */
+    // Diri ang treatment type sa service info.
     public function treatmentType(): BelongsTo
     {
         return $this->belongsTo(Service::class, 'treatment_type_id');
@@ -63,6 +67,7 @@ class ServicesInfo extends Model
     /**
      * Get the service (new relationship).
      */
+    // Diri ang serbisyo sa service info.
     public function service(): BelongsTo
     {
         return $this->belongsTo(Service::class, 'treatment_type_id');
@@ -71,6 +76,7 @@ class ServicesInfo extends Model
     /**
      * Get the complaint (if linked).
      */
+    // Diri ang complaint sa service info.
     public function complaint(): BelongsTo
     {
         return $this->belongsTo(Complaint::class);

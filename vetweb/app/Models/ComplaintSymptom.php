@@ -28,6 +28,7 @@ class ComplaintSymptom extends Model
     /**
      * Get the complaint.
      */
+    // Diri ang complaint sa sintomas.
     public function complaint(): BelongsTo
     {
         return $this->belongsTo(Complaint::class);
@@ -36,6 +37,7 @@ class ComplaintSymptom extends Model
     /**
      * Get the symptom.
      */
+    // Diri ang sintomas sa complaint.
     public function symptom(): BelongsTo
     {
         return $this->belongsTo(Symptom::class);

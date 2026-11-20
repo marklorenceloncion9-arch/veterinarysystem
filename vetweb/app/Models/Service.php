@@ -5,7 +5,6 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Service extends Model
 {
@@ -26,6 +25,7 @@ class Service extends Model
     /**
      * Get all services as an array for dropdowns
      */
+    // Diri kuhaon ang tanang type sa serbisyo.
     public static function getAllTypes()
     {
         return self::all()->pluck('type_name', 'id');
@@ -34,6 +34,7 @@ class Service extends Model
     /**
      * Get service ID by name
      */
+    // Diri kuhaon ang ID sa serbisyo base sa ngalan.
     public static function getIdByName(string $name): ?int
     {
         $service = self::where('type_name', $name)->first();
@@ -43,27 +44,10 @@ class Service extends Model
     /**
      * Get appointments for this service.
      */
+    // Diri ang mga appointment sa serbisyo.
     public function appointments(): BelongsToMany
     {
-        return $this->belongsToMany(Appointment::class, 'booking_services', 'treatment_type_id', 'booking_id')
-            ->withTimestamps();
-    }
-
-    /**
-     * Get medicines required for this service.
-     */
-    public function serviceMedicines(): HasMany
-    {
-        return $this->hasMany(ServiceMedicine::class);
-    }
-
-    /**
-     * Get medicines through service_medicines relationship.
-     */
-    public function medicines(): BelongsToMany
-    {
-        return $this->belongsToMany(Medicine::class, 'service_medicines')
-            ->withPivot('quantity', 'unit_id')
+        return $this->belongsToMany(Appointment::class, 'booking_services', 'service_type_id', 'booking_id')
             ->withTimestamps();
     }
 }

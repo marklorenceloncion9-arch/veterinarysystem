@@ -12,6 +12,7 @@ class BookingMedicine extends Model
 
     protected $fillable = [
         'booking_id',
+        'animal_id',
         'inventory_id',
         'medicine_id',
         'quantity_used',
@@ -24,16 +25,25 @@ class BookingMedicine extends Model
         'dosage_ml' => 'decimal:2',
     ];
 
+    // Diri ang booking sa tambal.
     public function booking(): BelongsTo
     {
         return $this->belongsTo(Appointment::class, 'booking_id');
     }
 
+    // Diri ang hayop nga gihatagan og tambal.
+    public function animal(): BelongsTo
+    {
+        return $this->belongsTo(Animal::class, 'animal_id');
+    }
+
+    // Diri ang batch sa inventory sa tambal.
     public function inventory(): BelongsTo
     {
         return $this->belongsTo(Inventory::class);
     }
 
+    // Diri ang tambal nga gigamit.
     public function medicine(): BelongsTo
     {
         return $this->belongsTo(Medicine::class);

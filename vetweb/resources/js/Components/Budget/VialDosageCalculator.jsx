@@ -1,9 +1,11 @@
 import { useState } from 'react';
 
+// Diri ang calculator sa dosage gikan sa vial.
 export default function VialDosageCalculator({ inventory, onDosageCalculated }) {
     const [dogWeight, setDogWeight] = useState('');
     const [dosage, setDosage] = useState(0);
 
+    // Diri kuwentahon ang dosage base sa timbang sa iro.
     const calculateDosage = () => {
         if (!dogWeight || !inventory.volume_ml) return;
         
@@ -19,6 +21,7 @@ export default function VialDosageCalculator({ inventory, onDosageCalculated }) 
         }
     };
 
+    // Diri i-update ang timbang ug i-reset ang dosage.
     const handleWeightChange = (e) => {
         setDogWeight(e.target.value);
         setDosage(0);

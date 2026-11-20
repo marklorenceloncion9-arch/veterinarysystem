@@ -4,6 +4,7 @@ import { StyleSheet } from 'react-native';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 
+// Diri ang sample nga modal screen.
 export default function ModalScreen() {
   return (
     <ThemedView style={styles.container}>

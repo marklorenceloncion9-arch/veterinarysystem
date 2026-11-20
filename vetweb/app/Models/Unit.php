@@ -15,6 +15,7 @@ class Unit extends Model
         'is_liquid' => 'boolean'
     ];
 
+    // Diri ang mga inventory batch sa unit.
     public function inventories()
     {
         return $this->hasMany(Inventory::class);

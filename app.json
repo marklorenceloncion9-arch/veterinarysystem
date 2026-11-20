@@ -1,5 +1,11 @@
 {
   "plugins": [
     "expo-secure-store"
-  ]
+  ],
+  "extra": {
+    "eas": {
+      "projectId": "095a4c7d-7911-40e8-8f03-33217109aa90"
+    }
+  },
+  "owner": "lorenceywa"
 }

@@ -27,21 +27,25 @@ class PetRegistration extends Model
         'paid_at' => 'datetime',
     ];
 
+    // Diri ang hayop sa pet registration.
     public function animal()
     {
         return $this->belongsTo(Animal::class, 'animal_id');
     }
 
+    // Diri ang pet sa registration.
     public function pet()
     {
         return $this->belongsTo(Animal::class, 'animal_id');
     }
 
+    // Diri ang client sa pet registration.
     public function client()
     {
         return $this->belongsTo(User::class, 'client_id');
     }
 
+    // Diri ang payment type sa pet registration.
     public function paymentType()
     {
         return $this->belongsTo(PaymentType::class);

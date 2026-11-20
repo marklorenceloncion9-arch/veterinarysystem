@@ -23,6 +23,7 @@ class AppointmentTreatmentType extends Model
     /**
      * Get the appointment that owns this treatment type.
      */
+    // Diri ang appointment sa treatment type.
     public function appointment(): BelongsTo
     {
         return $this->belongsTo(Appointment::class, 'booking_id');
@@ -31,6 +32,7 @@ class AppointmentTreatmentType extends Model
     /**
      * Get the treatment type.
      */
+    // Diri ang treatment type sa appointment.
     public function treatmentType(): BelongsTo
     {
         return $this->belongsTo(TreatmentType::class);

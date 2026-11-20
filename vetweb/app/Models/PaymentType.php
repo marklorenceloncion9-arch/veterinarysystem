@@ -22,6 +22,7 @@ class PaymentType extends Model
     /**
      * Get amount by payment type.
      */
+    // Diri kuhaon ang kantidad sa payment type.
     public static function getAmount($type)
     {
         $paymentType = self::where('payment_type', $type)->first();
@@ -31,6 +32,7 @@ class PaymentType extends Model
     /**
      * Update amount for a payment type.
      */
+    // Diri usbon ang kantidad sa payment type.
     public static function updateAmount($type, $amount)
     {
         return self::where('payment_type', $type)->update(['amount' => $amount]);
@@ -39,6 +41,7 @@ class PaymentType extends Model
     /**
      * Get ID by payment type.
      */
+    // Diri kuhaon ang ID sa payment type.
     public static function getId($type)
     {
         $paymentType = self::where('payment_type', $type)->first();
@@ -48,11 +51,13 @@ class PaymentType extends Model
     /**
      * Get payment type by type name.
      */
+    // Diri pangitaon ang payment type base sa type.
     public static function getByType($type)
     {
         return self::where('payment_type', $type)->first();
     }
 
+    // Diri ang mga pet registration sa payment type.
     public function petRegistrations()
     {
         return $this->hasMany(PetRegistration::class);

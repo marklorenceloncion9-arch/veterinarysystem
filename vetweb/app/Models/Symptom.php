@@ -22,6 +22,7 @@ class Symptom extends Model
     /**
      * Get the complaints associated with this symptom.
      */
+    // Diri ang mga complaint sa sintomas.
     public function complaints(): BelongsToMany
     {
         return $this->belongsToMany(Complaint::class, 'complaint_symptoms')
@@ -32,6 +33,7 @@ class Symptom extends Model
     /**
      * Get all symptoms as array for dropdowns
      */
+    // Diri kuhaon ang tanang sintomas.
     public static function getAll(): array
     {
         return self::all()->pluck('name', 'id')->toArray();

@@ -5,6 +5,7 @@ namespace App\Http\Middleware;
 use Closure;
 use Illuminate\Http\Request;
 use App\Models\User;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 
@@ -17,6 +18,7 @@ class TokenAuthMiddleware
      * @param  \Closure  $next
      * @return mixed
      */
+    // Diri i-authenticate ang mobile user gamit ang bearer token.
     public function handle(Request $request, Closure $next)
     {
         try {
@@ -40,7 +42,16 @@ class TokenAuthMiddleware
                 ], 401);
             }
 
-            // Set the authenticated user on the request
+            if ($user->role === 'client' && $user->approval_status === 'rejected') {
+                return response()->json([
+                    'success' => false,
+                    'approval_rejected' => true,
+                    'error' => 'The account you created did not match the photo you provided. Please register again with correct information and a matching ID or residence document.',
+                ], 403);
+            }
+
+            // Set the authenticated user on the request and Auth facade.
+            Auth::setUser($user);
             $request->setUserResolver(function () use ($user) {
                 return $user;
             });

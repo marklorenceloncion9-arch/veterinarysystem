@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import Sidebar from '@/Components/Admin/Sidebar';
 
+// Diri ang page sa revenue.
 export default function Revenue() {
     const [revenueData, setRevenueData] = useState(null);
     const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
@@ -14,12 +15,14 @@ export default function Revenue() {
     const [history, setHistory] = useState([]);
 
     // CSRF token helper
+    // Diri kuhaon ang CSRF token.
     const getCSRFToken = () => {
         const token = document.head.querySelector('meta[name="csrf-token"]');
         return token ? token.getAttribute('content') : '';
     };
 
     // Fetch revenue data
+    // Diri kuhaon ang revenue data.
     const fetchRevenueData = async () => {
         setLoading(true);
         try {
@@ -57,6 +60,7 @@ export default function Revenue() {
     }, [selectedYear, selectedPaymentType]);
 
     // Handle month click to edit fee
+    // Diri ablihan ang edit sa fee sa bulan.
     const handleMonthClick = (monthData) => {
         setSelectedMonth(monthData);
         setNewFee(monthData.fee_per_registration.toString());
@@ -64,6 +68,7 @@ export default function Revenue() {
     };
 
     // Handle fee update
+    // Diri i-update ang fee sa registration.
     const handleUpdateFee = async (e) => {
         e.preventDefault();
         
@@ -109,6 +114,7 @@ export default function Revenue() {
     };
 
     // Format currency
+    // Diri i-format ang kwarta sa peso.
     const formatCurrency = (amount) => {
         return new Intl.NumberFormat('en-PH', {
             style: 'currency',
@@ -117,11 +123,11 @@ export default function Revenue() {
     };
 
     return (
-        <div className="flex min-h-screen bg-gray-50">
+        <div className="flex h-screen overflow-hidden bg-canvas">
             <Sidebar />
-            
-            <main className="flex-1 ml-72 p-8">
-                <div className="max-w-7xl mx-auto">
+            <div className="staff-main flex min-h-0 flex-1 flex-col overflow-hidden">
+            <main className="min-h-0 flex-1 overflow-y-auto p-8 scrollbar-hide">
+                <div>
                     {/* Header */}
                     <div className="mb-8">
                         <h1 className="text-2xl font-bold text-gray-900">Total Revenue</h1>
@@ -208,7 +214,7 @@ export default function Revenue() {
                         </div>
 
                         {/* Total Revenue This Year */}
-                        <div className="bg-gradient-to-r from-violet-600 to-violet-700 rounded-2xl p-6 text-white">
+                        <div className="bg-navy rounded-xl p-6 text-white">
                             <div className="flex items-center justify-between">
                                 <div>
                                     <p className="text-violet-100 text-sm">Total Revenue {selectedYear}</p>
@@ -375,6 +381,7 @@ export default function Revenue() {
                     </div>
                 )}
             </main>
+            </div>
         </div>
     );
 }

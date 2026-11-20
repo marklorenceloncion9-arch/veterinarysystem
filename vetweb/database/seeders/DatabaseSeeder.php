@@ -15,6 +15,7 @@ class DatabaseSeeder extends Seeder
     {
         $this->call([
             BarangaySeeder::class,
+            ZoneSeeder::class,
             AnimalTypeSeeder::class,
         ]);
 

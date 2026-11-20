@@ -14,7 +14,8 @@ class AppointmentService extends Model
 
     protected $fillable = [
         'booking_id',
-        'treatment_type_id',
+        'service_type_id',
+        'animal_id',
     ];
 
     protected $casts = [
@@ -25,24 +26,45 @@ class AppointmentService extends Model
     /**
      * Get the appointment that owns this service.
      */
+    // Diri ang appointment sa serbisyo.
     public function appointment(): BelongsTo
     {
         return $this->belongsTo(Appointment::class, 'booking_id');
     }
 
     /**
+     * Animal this service row belongs to (nullable for legacy rows).
+     */
+    // Diri ang hayop nga gi-serbisyohan.
+    public function animal(): BelongsTo
+    {
+        return $this->belongsTo(Animal::class, 'animal_id');
+    }
+
+    /**
      * Get the service.
      */
+    // Diri ang serbisyo nga gi-book.
     public function service(): BelongsTo
     {
-        return $this->belongsTo(Service::class, 'treatment_type_id', 'id');
+        return $this->belongsTo(Service::class, 'service_type_id', 'id');
+    }
+
+    /**
+     * Get the service type (alias for service relationship).
+     */
+    // Diri ang type sa serbisyo.
+    public function serviceType(): BelongsTo
+    {
+        return $this->belongsTo(Service::class, 'service_type_id');
     }
 
     /**
      * Get the treatment type (legacy relationship for backward compatibility).
      */
+    // Diri ang treatment type sa serbisyo.
     public function treatmentType(): BelongsTo
     {
-        return $this->belongsTo(Service::class, 'treatment_type_id');
+        return $this->belongsTo(Service::class, 'service_type_id');
     }
 }

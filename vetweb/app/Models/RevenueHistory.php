@@ -23,11 +23,13 @@ class RevenueHistory extends Model
         'effective_date' => 'date',
     ];
 
+    // Diri ang payment type sa revenue history.
     public function paymentType()
     {
         return $this->belongsTo(PaymentType::class);
     }
 
+    // Diri ang user nga nag-usab sa bayad.
     public function changedBy()
     {
         return $this->belongsTo(User::class, 'changed_by');

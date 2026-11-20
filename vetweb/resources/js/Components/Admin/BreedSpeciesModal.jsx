@@ -1,6 +1,26 @@
 import { useState, useEffect } from 'react';
 import { router, usePage } from '@inertiajs/react';
+import Tabs from '@/Components/Ui/Tabs';
 
+// Diri ang form field nga naay label, hint, ug error.
+function FormField({ label, error, children, hint }) {
+    return (
+        <div>
+            <label className="mb-1.5 block text-sm font-medium text-gray-700">{label}</label>
+            {children}
+            {hint && !error && <p className="mt-1.5 text-xs text-gray-500">{hint}</p>}
+            {error && <p className="mt-1.5 text-sm text-red-600">{error}</p>}
+        </div>
+    );
+}
+
+// Diri himuon ang CSS class sa input, pula kung naay error.
+const inputClass = (hasError = false) =>
+    `block w-full rounded-xl border bg-gray-50 px-3 py-2.5 text-sm text-gray-700 transition-colors focus:bg-white focus:outline-none focus:ring-2 focus:ring-violet-100 ${
+        hasError ? 'border-red-300 focus:border-red-400' : 'border-gray-200 focus:border-violet-300'
+    }`;
+
+// Diri ang modal sa pag-add ug species ug breed.
 export default function BreedSpeciesModal({ isOpen, onClose, animalTypes }) {
     const { props } = usePage();
     const [activeTab, setActiveTab] = useState('species');
@@ -17,23 +37,20 @@ export default function BreedSpeciesModal({ isOpen, onClose, animalTypes }) {
     const [showSuccess, setShowSuccess] = useState(false);
     const [successMessage, setSuccessMessage] = useState('');
 
-    console.log('BreedSpeciesModal render - animalTypes:', animalTypes);
-
-    // Handle success messages from Inertia
     useEffect(() => {
         if (props.flash?.success) {
             setSuccessMessage(props.flash.success);
             setShowSuccess(true);
-            
-            // Auto-hide success message after 3 seconds but keep modal open
+
             const timer = setTimeout(() => {
                 setShowSuccess(false);
             }, 3000);
-            
+
             return () => clearTimeout(timer);
         }
     }, [props.flash?.success]);
 
+    // Diri i-save ang bag-ong species.
     const handleSpeciesSubmit = (e) => {
         e.preventDefault();
         setLoading(true);
@@ -43,17 +60,16 @@ export default function BreedSpeciesModal({ isOpen, onClose, animalTypes }) {
             onSuccess: () => {
                 setSpeciesForm({ species_name: '', type_id: '' });
                 setLoading(false);
-                // Success will be handled by the flash message effect
-                // Modal stays open
             },
-            onError: (errors) => {
-                setErrors(errors);
+            onError: (submitErrors) => {
+                setErrors(submitErrors);
                 setLoading(false);
             },
             preserveState: true,
         });
     };
 
+    // Diri i-save ang bag-ong breed.
     const handleBreedSubmit = (e) => {
         e.preventDefault();
         setLoading(true);
@@ -63,11 +79,9 @@ export default function BreedSpeciesModal({ isOpen, onClose, animalTypes }) {
             onSuccess: () => {
                 setBreedForm({ breed_name: '', species_id: '' });
                 setLoading(false);
-                // Success will be handled by the flash message effect
-                // Modal stays open
             },
-            onError: (errors) => {
-                setErrors(errors);
+            onError: (submitErrors) => {
+                setErrors(submitErrors);
                 setLoading(false);
             },
             preserveState: true,
@@ -76,23 +90,26 @@ export default function BreedSpeciesModal({ isOpen, onClose, animalTypes }) {
 
     if (!isOpen) return null;
 
+    const tabs = [
+        { id: 'species', label: 'Add Species', icon: 'M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z' },
+        { id: 'breeds', label: 'Add Breed', icon: 'M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z' },
+    ];
+
     return (
         <>
-            {/* Success Notification */}
             {showSuccess && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
-                    <div className="bg-green-500 text-white px-6 py-4 rounded-lg shadow-lg flex items-center space-x-3 pointer-events-auto animate-pulse">
-                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="pointer-events-none fixed inset-0 z-[60] flex items-start justify-center p-6">
+                    <div className="pointer-events-auto flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-3.5 text-sm font-medium text-emerald-800 shadow-lg">
+                        <svg className="h-5 w-5 shrink-0 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"/>
                         </svg>
-                        <span className="font-medium">{successMessage}</span>
+                        <span>{successMessage}</span>
                         <button
-                            onClick={() => {
-                                setShowSuccess(false);
-                            }}
-                            className="ml-4 text-white hover:text-gray-200"
+                            type="button"
+                            onClick={() => setShowSuccess(false)}
+                            className="ml-2 rounded-lg p-1 text-emerald-600 transition-colors hover:bg-emerald-100"
                         >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"/>
                             </svg>
                         </button>
@@ -100,64 +117,69 @@ export default function BreedSpeciesModal({ isOpen, onClose, animalTypes }) {
                 </div>
             )}
 
-            <div className="fixed inset-0 z-40 flex items-center justify-center p-4 backdrop-blur-sm bg-white/30">
-                <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-                    {/* Modal Header */}
-                    <div className="px-6 py-4 border-b border-gray-200">
-                        <div className="flex justify-between items-center">
-                            <h3 className="text-lg font-medium text-gray-900">Manage Species & Breeds</h3>
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
+                <div
+                    className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-gray-100 bg-white shadow-2xl [&::-webkit-scrollbar]:hidden"
+                    style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+                >
+                    {/* Header */}
+                    <div className="sticky top-0 z-10 border-b border-gray-100 bg-white/95 px-6 py-5 backdrop-blur-sm">
+                        <div className="flex items-start justify-between gap-4">
+                            <div className="flex items-start gap-3">
+                                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-violet-600 text-white shadow-sm shadow-violet-200">
+                                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+                                    </svg>
+                                </div>
+                                <div>
+                                    <h3 className="text-lg font-bold text-gray-900">Species & Breeds</h3>
+                                    <p className="text-sm text-gray-500">Manage animal types for registration</p>
+                                </div>
+                            </div>
                             <button
+                                type="button"
                                 onClick={onClose}
-                                className="text-gray-400 hover:text-gray-600"
+                                className="rounded-lg p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600"
                             >
-                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"/>
                                 </svg>
                             </button>
                         </div>
                     </div>
 
-                    {/* Tabs */}
-                    <div className="border-b border-gray-200">
-                        <nav className="flex -mb-px">
-                            <button
-                                onClick={() => setActiveTab('species')}
-                                className={`py-2 px-4 border-b-2 font-medium text-sm ${
-                                    activeTab === 'species'
-                                        ? 'border-sky-500 text-sky-600'
-                                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                                }`}
-                            >
-                                Add Species
-                            </button>
-                            <button
-                                onClick={() => setActiveTab('breeds')}
-                                className={`py-2 px-4 border-b-2 font-medium text-sm ${
-                                    activeTab === 'breeds'
-                                        ? 'border-sky-500 text-sky-600'
-                                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                                }`}
-                            >
-                                Add Breed
-                            </button>
-                        </nav>
+                    <div className="px-6">
+                        <Tabs
+                            value={activeTab}
+                            onChange={(id) => {
+                                setActiveTab(id);
+                                setErrors({});
+                            }}
+                            fullWidth
+                            items={tabs.map((tab) => ({
+                                id: tab.id,
+                                label: tab.label,
+                                icon: (
+                                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d={tab.icon} />
+                                    </svg>
+                                ),
+                            }))}
+                        />
                     </div>
 
-                    {/* Tab Content */}
-                    <div className="px-6 py-4">
+                    {/* Content */}
+                    <div className="px-6 py-5">
                         {activeTab === 'species' && (
-                            <form onSubmit={handleSpeciesSubmit} className="space-y-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Animal Type</label>
+                            <form onSubmit={handleSpeciesSubmit} className="space-y-5">
+                                <FormField label="Animal Type" error={errors.type_id}>
                                     {animalTypes.length === 0 ? (
-                                        <div className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-gray-50 text-gray-500">
-                                            Loading animal types...
-                                        </div>
+                                        <div className={`${inputClass()} text-gray-400`}>Loading animal types...</div>
                                     ) : (
                                         <select
                                             value={speciesForm.type_id}
                                             onChange={(e) => setSpeciesForm({ ...speciesForm, type_id: e.target.value })}
-                                            className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
+                                            className={inputClass(!!errors.type_id)}
                                             required
                                         >
                                             <option value="">Select Animal Type</option>
@@ -166,27 +188,31 @@ export default function BreedSpeciesModal({ isOpen, onClose, animalTypes }) {
                                             ))}
                                         </select>
                                     )}
-                                    {errors.type_id && <p className="mt-1 text-sm text-red-600">{errors.type_id}</p>}
-                                </div>
+                                </FormField>
 
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Species Name</label>
+                                <FormField label="Species Name" error={errors.species_name} hint="e.g., Dog, Cat, Chicken">
                                     <input
                                         type="text"
                                         value={speciesForm.species_name}
                                         onChange={(e) => setSpeciesForm({ ...speciesForm, species_name: e.target.value })}
-                                        className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
-                                        placeholder="e.g., Dog, Cat, Chicken"
+                                        className={inputClass(!!errors.species_name)}
+                                        placeholder="Enter species name"
                                         required
                                     />
-                                    {errors.species_name && <p className="mt-1 text-sm text-red-600">{errors.species_name}</p>}
-                                </div>
+                                </FormField>
 
-                                <div className="flex justify-end">
+                                <div className="flex justify-end gap-3 border-t border-gray-100 pt-5">
+                                    <button
+                                        type="button"
+                                        onClick={onClose}
+                                        className="rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
+                                    >
+                                        Cancel
+                                    </button>
                                     <button
                                         type="submit"
                                         disabled={loading}
-                                        className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-sky-600 hover:bg-sky-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500 disabled:opacity-50"
+                                        className="inline-flex items-center gap-2 rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm shadow-violet-200 transition-all hover:bg-violet-700 disabled:opacity-50"
                                     >
                                         {loading ? 'Adding...' : 'Add Species'}
                                     </button>
@@ -195,18 +221,15 @@ export default function BreedSpeciesModal({ isOpen, onClose, animalTypes }) {
                         )}
 
                         {activeTab === 'breeds' && (
-                            <form onSubmit={handleBreedSubmit} className="space-y-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Species</label>
+                            <form onSubmit={handleBreedSubmit} className="space-y-5">
+                                <FormField label="Species" error={errors.species_id}>
                                     {animalTypes.length === 0 ? (
-                                        <div className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-gray-50 text-gray-500">
-                                            Loading species...
-                                        </div>
+                                        <div className={`${inputClass()} text-gray-400`}>Loading species...</div>
                                     ) : (
                                         <select
                                             value={breedForm.species_id}
                                             onChange={(e) => setBreedForm({ ...breedForm, species_id: e.target.value })}
-                                            className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
+                                            className={inputClass(!!errors.species_id)}
                                             required
                                         >
                                             <option value="">Select Species</option>
@@ -219,27 +242,31 @@ export default function BreedSpeciesModal({ isOpen, onClose, animalTypes }) {
                                             ))}
                                         </select>
                                     )}
-                                    {errors.species_id && <p className="mt-1 text-sm text-red-600">{errors.species_id}</p>}
-                                </div>
+                                </FormField>
 
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Breed Name</label>
+                                <FormField label="Breed Name" error={errors.breed_name} hint="e.g., Labrador Retriever, Persian">
                                     <input
                                         type="text"
                                         value={breedForm.breed_name}
                                         onChange={(e) => setBreedForm({ ...breedForm, breed_name: e.target.value })}
-                                        className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
-                                        placeholder="e.g., Labrador Retriever, Persian, Siamese"
+                                        className={inputClass(!!errors.breed_name)}
+                                        placeholder="Enter breed name"
                                         required
                                     />
-                                    {errors.breed_name && <p className="mt-1 text-sm text-red-600">{errors.breed_name}</p>}
-                                </div>
+                                </FormField>
 
-                                <div className="flex justify-end">
+                                <div className="flex justify-end gap-3 border-t border-gray-100 pt-5">
+                                    <button
+                                        type="button"
+                                        onClick={onClose}
+                                        className="rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
+                                    >
+                                        Cancel
+                                    </button>
                                     <button
                                         type="submit"
                                         disabled={loading}
-                                        className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-sky-600 hover:bg-sky-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500 disabled:opacity-50"
+                                        className="inline-flex items-center gap-2 rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm shadow-violet-200 transition-all hover:bg-violet-700 disabled:opacity-50"
                                     >
                                         {loading ? 'Adding...' : 'Add Breed'}
                                     </button>

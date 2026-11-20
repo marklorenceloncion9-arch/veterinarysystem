@@ -1,24 +1,64 @@
-// Simple API Configuration
-// Edit this to match your setup
-
+import axios from 'axios';
+import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 
-// Your computer's IP address (for mobile simulators/devices)
-const COMPUTER_IP = '10.149.15.230';
+// Allow manual override from .env when needed.
+const ENV_API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL?.trim();
 
-// For web development, use localhost
-const WEB_IP = 'localhost';
+// Fallbacks when Expo host info is unavailable.
+const DEFAULT_MOBILE_IP = '10.112.135.230';
+const DEFAULT_WEB_HOST = 'localhost';
 
-// XAMPP port (usually 80, or 8080 if you changed it)
+// Laravel app path (Laragon/XAMPP virtual host path).
+const PROJECT_PATH = '/Project/vetweb/public';
 const PORT = '';
 
-// Project path - change if your Laravel is in a different folder
-// Use '' if Laravel is at root, or '/Project/vetweb/public' if in subdirectory
-const PROJECT_PATH = '/Project/vetweb/public';
+// Diri kuhaon ang IP sa Expo host.
+function extractExpoHostIp(): string | null {
+  const hostUri = Constants.expoConfig?.hostUri;
+  if (!hostUri) return null;
 
-// API base URL - automatically chooses based on platform
-const BASE_IP = Platform.OS === 'web' ? WEB_IP : COMPUTER_IP;
-export const API_BASE_URL = `http://${BASE_IP}${PORT ? ':' + PORT : ''}${PROJECT_PATH}`;
+  // hostUri format is usually "192.168.1.10:8081".
+  const [host] = hostUri.split(':');
+  if (!host || host === 'localhost' || host === '127.0.0.1') return null;
+  return host;
+}
+
+// Diri buhaton ang base URL sa API.
+function buildBaseUrl() {
+  if (ENV_API_BASE_URL) {
+    return ENV_API_BASE_URL.replace(/\/$/, '');
+  }
+
+  const mobileHost = extractExpoHostIp() || DEFAULT_MOBILE_IP;
+  const baseHost = Platform.OS === 'web' ? DEFAULT_WEB_HOST : mobileHost;
+  return `http://${baseHost}${PORT ? `:${PORT}` : ''}${PROJECT_PATH}`;
+}
+
+export const API_BASE_URL = buildBaseUrl();
+
+// Android keeps GET responses in an OkHttp cache. A Hostinger 404 for these
+// routes was stored there and kept showing after the live API started working.
+axios.interceptors.request.use((config) => {
+  const method = (config.method || 'get').toLowerCase();
+  if (method !== 'get') return config;
+
+  config.headers = config.headers ?? {};
+  if (typeof (config.headers as { set?: (key: string, value: string) => void }).set === 'function') {
+    (config.headers as { set: (key: string, value: string) => void }).set('Cache-Control', 'no-cache');
+    (config.headers as { set: (key: string, value: string) => void }).set('Pragma', 'no-cache');
+  } else {
+    (config.headers as Record<string, string>)['Cache-Control'] = 'no-cache';
+    (config.headers as Record<string, string>)['Pragma'] = 'no-cache';
+  }
+
+  const url = config.url || '';
+  if (url.includes('/api/mobile/barangays') || url.includes('/api/mobile/zones')) {
+    config.params = { ...(config.params || {}), _: Date.now() };
+  }
+
+  return config;
+});
 
 // Example: http://192.168.0.102/api/mobile/register
 export const API_URLS = {
